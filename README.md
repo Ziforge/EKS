@@ -80,8 +80,11 @@ graph LR
         SP --> OR[Out R]
     end
 
-    style LFO fill:#ffe1ff
-    style SP fill:#e1f5ff
+    classDef lfoStyle stroke:#c77dff,stroke-width:3px
+    classDef panStyle stroke:#4ecdc4,stroke-width:3px
+
+    class LFO,MOD lfoStyle
+    class SP panStyle
 ```
 
 ### Reverb
@@ -121,10 +124,15 @@ graph TB
         BR[Brightness B] -.-> DF
     end
 
-    style E fill:#ffcccc
-    style DL fill:#ccffcc
-    style DF fill:#ccccff
-    style OUT fill:#ffffcc
+    classDef exciteStyle stroke:#ff6b6b,stroke-width:3px
+    classDef delayStyle stroke:#4ecdc4,stroke-width:3px
+    classDef dampStyle stroke:#95e1d3,stroke-width:3px
+    classDef outStyle stroke:#ffd93d,stroke-width:3px
+
+    class E exciteStyle
+    class DL delayStyle
+    class DF dampStyle
+    class OUT outStyle
 ```
 
 ### Sequencer Implementation
@@ -132,27 +140,35 @@ graph TB
 Uses `os.lf_imptrain()` to generate clock pulses at a specified Hz rate, driving a 32-step pattern through E minor pentatonic-inspired arpeggios.
 
 ```mermaid
-sequenceDiagram
-    participant UI as User Interface
-    participant CLK as Clock Generator
-    participant SEQ as Step Counter
-    participant NOTE as Note Lookup
-    participant EKS as EKS Synth
-    participant OUT as Audio Output
+graph TB
+    UI[User Interface] --> NR[note_rate Hz]
+    UI --> RUN[run_sequencer]
 
-    UI->>CLK: note_rate (Hz)
-    UI->>CLK: run_sequencer (on/off)
+    NR --> CLK[Clock Generator<br/>os.lf_imptrain]
+    RUN --> CLK
 
-    loop Every Clock Pulse
-        CLK->>SEQ: Generate Impulse
-        SEQ->>SEQ: Increment (0-31)
-        SEQ->>NOTE: Current Step
-        NOTE->>NOTE: Lookup Pitch Offset
-        NOTE->>EKS: MIDI Note Number
-        CLK->>EKS: Gate Trigger
-        EKS->>EKS: Generate String Sound
-        EKS->>OUT: Stereo Audio
-    end
+    CLK -->|Impulse| SEQ[Step Counter<br/>ba.pulse_countup_loop<br/>0-31]
+    SEQ --> NOTE[Note Lookup<br/>note_at_step]
+    NOTE --> MIDI[MIDI Note<br/>root + offset]
+    MIDI --> FREQ[ba.midikey2hz]
+
+    CLK -->|Gate| GATE[Gate Signal]
+    FREQ --> EKS[EKS Synth]
+    GATE --> EKS
+
+    EKS --> OUT[Stereo Audio Output]
+
+    classDef uiStyle stroke:#ff6b6b,stroke-width:3px
+    classDef clockStyle stroke:#4ecdc4,stroke-width:3px
+    classDef noteStyle stroke:#95e1d3,stroke-width:3px
+    classDef eksStyle stroke:#f38181,stroke-width:3px
+    classDef outStyle stroke:#ffd93d,stroke-width:3px
+
+    class UI,NR,RUN uiStyle
+    class CLK,SEQ clockStyle
+    class NOTE,MIDI,FREQ noteStyle
+    class EKS,GATE eksStyle
+    class OUT outStyle
 ```
 
 #### Arpeggio Pattern (32 Steps)
@@ -198,8 +214,11 @@ graph LR
     S15 --> S16
     S31 -.Loop.-> S0
 
-    style S0 fill:#90EE90
-    style S16 fill:#FFB6C1
+    classDef mainPattern stroke:#90EE90,stroke-width:3px
+    classDef variation stroke:#FFB6C1,stroke-width:3px
+
+    class S0 mainPattern
+    class S16 variation
 ```
 
 ### Signal Flow
@@ -232,9 +251,13 @@ graph TD
     F -.Feedback Loop.-> O[Damping Filter<br/>FIR3 LPF]
     O -.-> F
 
-    style F fill:#e1f5ff
-    style I fill:#ffe1e1
-    style L fill:#e1ffe1
+    classDef stringStyle stroke:#4ecdc4,stroke-width:3px
+    classDef panStyle stroke:#ff6b6b,stroke-width:3px
+    classDef reverbStyle stroke:#95e1d3,stroke-width:3px
+
+    class F,O stringStyle
+    class I panStyle
+    class L reverbStyle
 ```
 
 ## Musical Notes
