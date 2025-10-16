@@ -291,6 +291,19 @@ Perfect for 30-second progressive rock demo clips showcasing physical modeling s
 
 ---
 
-**Repository**: Private
+**Repository**: [github.com/Ziforge/EKS](https://github.com/Ziforge/EKS) (Public)
+**License**: STK-4.3 (Synthesis Toolkit)
 **Created**: 2025
 **Status**: Active Development
+
+## Contributing
+
+This is an open-source educational project based on Julius O. Smith III's work. Contributions are welcome! Feel free to:
+- Report issues
+- Submit pull requests
+- Fork for your own experiments
+- Share improvements to the algorithm or sequencer
+
+## License
+
+This project uses the STK-4.3 license, following the original EKS implementation. The code is free to use for research and educational purposes.
