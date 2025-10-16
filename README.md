@@ -104,54 +104,184 @@ The EKS algorithm extends the basic Karplus-Strong plucked string model with:
 
 #### Physics & Mathematics
 
-The EKS algorithm uses several transfer functions to model string physics:
+The EKS algorithm uses several transfer functions and IIR/FIR filters to model string physics:
 
-**Pick-Direction Lowpass Filter**:
-```
-H_p(z) = (1-p) / (1 - p·z⁻¹)
-```
-where `p ∈ [0,1)` controls pick sharpness (smooth vs. sharp attack)
+##### 1. One-Zero String Damping Filter
 
-**Pick-Position Comb Filter**:
+The simplest damping filter uses a single pole/zero pair:
+
+**Transfer Function**:
+```
+H_d(z) = ρ[(1-S) + S·z⁻¹]
+```
+
+**Difference Equation**:
+```
+y(n) = ρ[b₀·x(n) + b₁·x(n-1)]
+```
+
+where:
+- `S ∈ [0,1]` is the stretching factor
+- `b₀ = 1 - S` (feed-forward coefficient at n)
+- `b₁ = S` (feed-forward coefficient at n-1)
+- `ρ ∈ (0,1)` is loop gain for decay control
+
+**Brightness Mapping**:
+```
+S = B/2
+b₁ = 0.5·B
+b₀ = 1.0 - b₁
+```
+
+**Decay Time Calculation**:
+```
+ρ = 0.001^(P·T/t₆₀)
+```
+where `P` is period, `T` is sample interval, `t₆₀` is -60dB decay time
+
+**Characteristics**:
+- DC gain = ρ (infinite decay at DC when ρ=1)
+- Fastest decay at S = 0.5 (original Karplus-Strong)
+- Higher frequencies decay faster than lower frequencies
+
+##### 2. Two-Zero String Damping Filter (Linear Phase)
+
+Our implementation uses this symmetric FIR filter for better tuning:
+
+**Transfer Function**:
+```
+H_d(z) = ρ[g₁ + g₀·z⁻¹ + g₁·z⁻²]
+       = ρ·z⁻¹[g₀ + g₁(z + z⁻¹)]
+```
+
+**Impulse Response**:
+```
+h_d = [g₁, g₀, g₁, 0, 0, ...]
+```
+Symmetric around time n=1 (linear phase property)
+
+**Coefficients from Brightness**:
+```
+h₀ = (1 + B)/2    (center tap)
+h₁ = (1 - B)/4    (side taps)
+```
+
+**Implementation**:
+```
+dampingfilter2(x) = ρ·[h₀·x' + h₁·(x + x'')]
+```
+
+where `x'` is x delayed by 1 sample, `x''` is x delayed by 2 samples
+
+**Loop Gain**:
+```
+ρ = pow(0.001, 1.0/(freq·t₆₀))
+```
+
+**Advantages**:
+- Linear phase (no phase distortion)
+- Better tuning invariance than one-zero
+- Symmetric impulse response reduces computation
+
+##### 3. Pick-Position Comb Filter
+
+Models the effect of plucking at position β along the string:
+
+**Transfer Function**:
 ```
 H_β(z) = 1 - z⁻⌊βN+½⌋
 ```
-where `β ∈ (0,1)` is normalized pick position and `N` is period in samples
 
-**String-Damping Filter** (our implementation uses FIR3):
+**Implementation**:
 ```
-H_d(z) = h₀ + h₁·z⁻¹ + h₁·z⁻² + h₀·z⁻³
+pickposfilter = ffcombfilter(Pmax, β·P, -1)
+```
+
+where:
+- `β ∈ (0,0.5)` is normalized pick position (0 = bridge, 0.5 = center)
+- `N = P` is period in samples
+- Delay = `⌊βN + 0.5⌋` (rounded to nearest integer)
+- Feedforward gain = -1 (inverts and subtracts delayed signal)
+
+**Effect**: Creates nulls in spectrum at multiples of 1/β
+
+##### 4. Dynamic-Level Lowpass Filter
+
+Compensates for high-frequency loss based on playing dynamics:
+
+**Continuous-Time (Analog)**:
+```
+H_L,ω₁(s) = ω₁/(s + ω₁)
+```
+where `ω₁ = 2πf₁` (fundamental frequency in rad/s)
+
+**Discrete-Time (Bilinear Transform)**:
+```
+H_L,ω₁(z) = [ω̃₁/(1+ω̃₁)] · [(1+z⁻¹)/(1-((1-ω̃₁)/(1+ω̃₁))·z⁻¹)]
+```
+where `ω̃₁ = ω₁T/2` (prewarped frequency)
+
+**Simplified IIR Form**:
+```
+H_L(z) = g·(1+z⁻¹)/(1-a₁·z⁻¹)
+```
+
+**Dynamic Blending**:
+```
+output = L·L₀(L)·x(n) + (1-L)·y(n)
 ```
 where:
-- `h₀ = (1 + B)/2`
-- `h₁ = (1 - B)/4`
-- `B ∈ [0,1]` is brightness parameter
+- `L ∈ [0,1]` is level parameter (from `dynamic_level` slider)
+- `L₀(L) = L^(1/3)` attenuates low levels
+- `x(n)` is unfiltered input
+- `y(n)` is lowpass-filtered signal
 
-**Loop Gain** (controls decay):
-```
-ρ = 0.001^(1/(f·T₆₀))
-```
-where:
-- `f` = fundamental frequency (Hz)
-- `T₆₀` = time for signal to decay by 60 dB (seconds)
+**Characteristics**:
+- Unity DC gain
+- -3 dB at fundamental frequency
+- -6 dB/octave rolloff above f₁
+- Bypassed at L=1 (maximum dynamics)
 
-**Dynamic-Level Lowpass Filter**:
-```
-H_L(z) = (1-R_L) / (1 - R_L·z⁻¹)
-```
-where `R_L = e^(-π·L·T)` and `L` is desired bandwidth (Hz)
+##### 5. Fundamental Period
 
-**Fundamental Period**:
+**Basic Relationship**:
 ```
-P = SR / f
+P = SR/f
 ```
-where `SR` is sample rate and `f` is frequency
 
-These equations combine to create a physically-informed model that captures:
-- **String vibration** via delay line feedback
-- **Energy loss** through damping filters
-- **Harmonic content** controlled by pick position and brightness
-- **Temporal decay** matching real string behavior
+**With Fractional Delay** (for fine tuning):
+```
+Total Delay = P - 2 + η
+```
+where `η` is fractional delay for precise tuning
+
+##### 6. Excitation Signal (Noise Burst)
+
+**Trigger Function**:
+```
+trigger(g, P) = g·[release(P) > 0]
+```
+
+**Release Envelope**:
+```
+release(n) = Σ decay(n, x) where decay(n,x) = x - (x>0)/n
+```
+
+Creates exponential decay with time constant proportional to period P
+
+---
+
+**Physical Interpretation**:
+
+These equations combine to model:
+- **String vibration**: Delay line = wave propagation time
+- **Energy loss**: ρ < 1 causes amplitude decay over time
+- **Frequency-dependent damping**: Higher harmonics decay faster (B parameter)
+- **Pluck position**: β determines which harmonics are excited
+- **Playing dynamics**: L adjusts high-frequency content based on force
+- **Realistic decay**: t₆₀ matches real string behavior
+
+The result is a computationally efficient physical model that captures the essential behavior of a plucked string.
 
 ```mermaid
 graph TB
