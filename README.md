@@ -60,6 +60,30 @@ faust2vst eks_with_mod.dsp         # VST plugin
 - **mod_rate** (0.01-10 Hz): LFO speed for auto-panning (0.5 Hz default)
 - **mod_depth** (0-1): How much LFO affects panning (0.5 default)
 
+```mermaid
+graph LR
+    subgraph "Modulation & Stereo Processing"
+        LFO[LFO Oscillator<br/>Sine Wave] --> MOD[×]
+        MR[mod_rate] -.-> LFO
+        MD[mod_depth] --> MOD
+        LFO --> MOD
+
+        PA[pan_angle<br/>Base Position] --> ADD((+))
+        MOD --> ADD
+        ADD --> CLIP[Clip 0-1]
+
+        ML[Mono L] --> SP[Stereo Panner]
+        MR2[Mono R<br/>+width delay] --> SP
+        CLIP --> SP
+
+        SP --> OL[Out L]
+        SP --> OR[Out R]
+    end
+
+    style LFO fill:#ffe1ff
+    style SP fill:#e1f5ff
+```
+
 ### Reverb
 - **reverb_mix** (0-1): Dry/wet balance (0.3 default)
 
@@ -75,24 +99,142 @@ The EKS algorithm extends the basic Karplus-Strong plucked string model with:
 4. **Damping Filter**: Linear-phase FIR3 filter for frequency-dependent decay
 5. **Level Filter**: Compensates for high-frequency loss
 
+```mermaid
+graph TB
+    subgraph "EKS Physical Model"
+        N[White Noise] --> G{Gate?}
+        G -->|Trigger| E[Excitation<br/>Burst Generator]
+        E --> S[Smooth<br/>pick_angle]
+        S --> PP[Pick Position<br/>Comb Filter<br/>β·P delay]
+        PP --> LF[Level Filter<br/>HF Compensation]
+        LF --> DL[Delay Line<br/>P-2 samples]
+
+        DL --> OUT[Output]
+        DL --> DF[Damping Filter<br/>ρ · FIR3 LPF]
+        DF --> FB((+))
+        LF --> FB
+        FB --> DL
+
+        P[Period P<br/>= SR/freq] -.-> DL
+        P -.-> PP
+        T60[Decay T60] -.-> DF
+        BR[Brightness B] -.-> DF
+    end
+
+    style E fill:#ffcccc
+    style DL fill:#ccffcc
+    style DF fill:#ccccff
+    style OUT fill:#ffffcc
+```
+
 ### Sequencer Implementation
 
 Uses `os.lf_imptrain()` to generate clock pulses at a specified Hz rate, driving a 32-step pattern through E minor pentatonic-inspired arpeggios.
 
+```mermaid
+sequenceDiagram
+    participant UI as User Interface
+    participant CLK as Clock Generator
+    participant SEQ as Step Counter
+    participant NOTE as Note Lookup
+    participant EKS as EKS Synth
+    participant OUT as Audio Output
+
+    UI->>CLK: note_rate (Hz)
+    UI->>CLK: run_sequencer (on/off)
+
+    loop Every Clock Pulse
+        CLK->>SEQ: Generate Impulse
+        SEQ->>SEQ: Increment (0-31)
+        SEQ->>NOTE: Current Step
+        NOTE->>NOTE: Lookup Pitch Offset
+        NOTE->>EKS: MIDI Note Number
+        CLK->>EKS: Gate Trigger
+        EKS->>EKS: Generate String Sound
+        EKS->>OUT: Stereo Audio
+    end
+```
+
+#### Arpeggio Pattern (32 Steps)
+
+```mermaid
+graph LR
+    subgraph "Steps 0-15: Main Pattern"
+        S0[0: E] --> S1[1: G]
+        S1 --> S2[2: B]
+        S2 --> S3[3: E+8]
+        S3 --> S4[4: G+8]
+        S4 --> S5[5: E+8]
+        S5 --> S6[6: B]
+        S6 --> S7[7: G]
+        S7 --> S8[8: E]
+        S8 --> S9[9: B]
+        S9 --> S10[10: E+8]
+        S10 --> S11[11: G+8]
+        S11 --> S12[12: B+8]
+        S12 --> S13[13: G+8]
+        S13 --> S14[14: E+8]
+        S14 --> S15[15: B]
+    end
+
+    subgraph "Steps 16-31: Variation"
+        S16[16: A] --> S17[17: B]
+        S17 --> S18[18: E+8]
+        S18 --> S19[19: F#]
+        S19 --> S20[20: E+8]
+        S20 --> S21[21: B]
+        S21 --> S22[22: A]
+        S22 --> S23[23: G]
+        S23 --> S24[24: E]
+        S24 --> S25[25: B]
+        S25 --> S26[26: E+8]
+        S26 --> S27[27: G+8]
+        S27 --> S28[28: E+8]
+        S28 --> S29[29: B]
+        S29 --> S30[30: A]
+        S30 --> S31[31: G]
+    end
+
+    S15 --> S16
+    S31 -.Loop.-> S0
+
+    style S0 fill:#90EE90
+    style S16 fill:#FFB6C1
+```
+
 ### Signal Flow
 
-```
-Noise → Noiseburst → Pick Filter → Level Filter → String Loop (feedback)
-                                                        ↓
-                                                   Split to Stereo
-                                                        ↓
-                                              Width Delay (decorrelation)
-                                                        ↓
-                                            Stereopanner (with LFO mod)
-                                                        ↓
-                                             Zita Reverb (parallel)
-                                                        ↓
-                                                  Output L/R
+```mermaid
+graph TD
+    A[White Noise] --> B[Noiseburst<br/>Gate Trigger]
+    B --> C[Pick Smoothing<br/>pick_angle]
+    C --> D[Pick Position Filter<br/>Comb Filter]
+    D --> E[Level Filter<br/>HF Compensation]
+    E --> F[String Loop<br/>Delay + Feedback]
+    F --> G{Split to Stereo}
+    G --> H1[Direct L]
+    G --> H2[Width Delay<br/>Decorrelation]
+    H1 --> I[Stereo Panner<br/>LFO Modulated]
+    H2 --> I
+    I --> J1[Dry L]
+    I --> J2[Dry R]
+    J1 --> K1[Mix]
+    J2 --> K2[Mix]
+    J1 --> L[Zita Reverb]
+    J2 --> L
+    L --> M1[Wet L]
+    L --> M2[Wet R]
+    M1 --> K1
+    M2 --> K2
+    K1 --> N1[Output L]
+    K2 --> N2[Output R]
+
+    F -.Feedback Loop.-> O[Damping Filter<br/>FIR3 LPF]
+    O -.-> F
+
+    style F fill:#e1f5ff
+    style I fill:#ffe1e1
+    style L fill:#e1ffe1
 ```
 
 ## Musical Notes
