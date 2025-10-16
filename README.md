@@ -102,6 +102,57 @@ The EKS algorithm extends the basic Karplus-Strong plucked string model with:
 4. **Damping Filter**: Linear-phase FIR3 filter for frequency-dependent decay
 5. **Level Filter**: Compensates for high-frequency loss
 
+#### Physics & Mathematics
+
+The EKS algorithm uses several transfer functions to model string physics:
+
+**Pick-Direction Lowpass Filter**:
+```
+H_p(z) = (1-p) / (1 - p·z⁻¹)
+```
+where `p ∈ [0,1)` controls pick sharpness (smooth vs. sharp attack)
+
+**Pick-Position Comb Filter**:
+```
+H_β(z) = 1 - z⁻⌊βN+½⌋
+```
+where `β ∈ (0,1)` is normalized pick position and `N` is period in samples
+
+**String-Damping Filter** (our implementation uses FIR3):
+```
+H_d(z) = h₀ + h₁·z⁻¹ + h₁·z⁻² + h₀·z⁻³
+```
+where:
+- `h₀ = (1 + B)/2`
+- `h₁ = (1 - B)/4`
+- `B ∈ [0,1]` is brightness parameter
+
+**Loop Gain** (controls decay):
+```
+ρ = 0.001^(1/(f·T₆₀))
+```
+where:
+- `f` = fundamental frequency (Hz)
+- `T₆₀` = time for signal to decay by 60 dB (seconds)
+
+**Dynamic-Level Lowpass Filter**:
+```
+H_L(z) = (1-R_L) / (1 - R_L·z⁻¹)
+```
+where `R_L = e^(-π·L·T)` and `L` is desired bandwidth (Hz)
+
+**Fundamental Period**:
+```
+P = SR / f
+```
+where `SR` is sample rate and `f` is frequency
+
+These equations combine to create a physically-informed model that captures:
+- **String vibration** via delay line feedback
+- **Energy loss** through damping filters
+- **Harmonic content** controlled by pick position and brightness
+- **Temporal decay** matching real string behavior
+
 ```mermaid
 graph TB
     subgraph "EKS Physical Model"
