@@ -15,7 +15,7 @@ A progressive rock-style arpeggiator built with **Julius Smith's Extended Karplu
 ### Faust Web IDE
 
 1. Go to [https://faustide.grame.fr/](https://faustide.grame.fr/)
-2. Copy the contents of `eks_with_mod.dsp`
+2. Copy the contents of `eks_guitar_sequencer_final.dsp`
 3. Click "Run" to compile and start playing
 4. Check the "run_sequencer" box to start the sequence
 5. Adjust `note_rate` slider to control tempo (12 Hz = 16th notes at 180 BPM)
