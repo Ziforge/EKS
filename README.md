@@ -1,64 +1,320 @@
-# EKS - Extended Karplus-Strong Guitar Synthesizer
+# Extended Karplus-Strong Guitar Synthesizer
 
-A progressive rock-style arpeggiator built with **Julius Smith's Extended Karplus-Strong (EKS)** physical modeling algorithm, implemented in the Faust programming language.
+[![Faust](https://img.shields.io/badge/Language-Faust-orange.svg)](https://faust.grame.fr/)
+[![License](https://img.shields.io/badge/License-STK--4.3-blue.svg)](LICENSE)
 
-## Features
+---
 
-- **Physical Modeling Synthesis**: Full EKS algorithm with string loop, damping filters, and pick position modeling
-- **16-Step Sequencer**: Fast arpeggiated patterns with adjustable tempo (Hz-based control)
-- **Stereo Width & Modulation**: Auto-panning with LFO modulation for spatial movement
-- **Zita Reverb**: High-quality stereo reverb with adjustable mix
-- **Real-time Control**: All parameters exposed as sliders for live performance
+## Abstract
 
-## Quick Start
+This project implements **Julius O. Smith III's Extended Karplus-Strong (EKS)** physical modeling algorithm for plucked string synthesis, realized in the Faust programming language. The system features a 32-step sequencer with progressive rock-style arpeggiated patterns, stereo width modulation, LFO-based auto-panning, and high-quality Zita reverb. The implementation extends the original Karplus-Strong algorithm with frequency-dependent damping, pick position modeling, and dynamic-level compensation for realistic string behavior.
 
-### Faust Web IDE
+**Key Features:**
+- Full EKS algorithm with linear-phase FIR damping filters
+- 16-step sequencer with Hz-based tempo control
+- LFO modulation for spatial movement
+- Zita reverb integration
+- Real-time parameter control for live performance
 
-1. Go to [https://faustide.grame.fr/](https://faustide.grame.fr/)
-2. Copy the contents of `eks_guitar_sequencer_final.dsp`
-3. Click "Run" to compile and start playing
-4. Check the "run_sequencer" box to start the sequence
-5. Adjust `note_rate` slider to control tempo (12 Hz = 16th notes at 180 BPM)
+**Based on**: Smith, J. O. (2010). "Physical Audio Signal Processing". CCRMA, Stanford University.
 
-### Local Compilation
+---
 
-```bash
-# Compile to C++
-faust eks_with_mod.dsp -o eks_with_mod.cpp
+## 1. Introduction
 
-# Compile to various targets
-faust2jaqt eks_with_mod.dsp        # JACK Qt application
-faust2alsa eks_with_mod.dsp        # ALSA standalone
-faust2vst eks_with_mod.dsp         # VST plugin
+### 1.1 Physical Modeling Synthesis
+
+Physical modeling recreates instrument behavior through mathematical simulation of acoustic physics. The Extended Karplus-Strong algorithm models plucked string instruments by simulating:
+- **Wave propagation**: Delay line representing string length
+- **Energy dissipation**: Frequency-dependent damping filters
+- **Excitation**: Initial displacement from plucking action
+- **Boundary conditions**: Fixed endpoints (bridge and nut)
+
+### 1.2 Extended Karplus-Strong Algorithm
+
+The EKS extends the basic Karplus-Strong (1983) with:
+1. **Linear-phase damping**: FIR3 filter for frequency-dependent decay
+2. **Pick position modeling**: Comb filter for pluck location effects
+3. **Dynamic-level compensation**: Adjustable high-frequency content
+4. **Brightness control**: Independent tuning invariance parameter
+
+---
+
+## 2. Mathematical Foundations
+
+### 2.1 One-Zero String Damping Filter
+
+The simplest damping filter uses a single zero:
+
+$$
+H_d(z) = \rho[(1-S) + S \cdot z^{-1}]
+$$
+
+**Difference equation**:
+
+$$
+y[n] = \rho[b_0 \cdot x[n] + b_1 \cdot x[n-1]]
+$$
+
+where:
+- $S \in [0,1]$ is the stretching factor
+- $b_0 = 1 - S$ (feedforward coefficient)
+- $b_1 = S$ (delayed feedforward coefficient)
+- $\rho \in (0,1)$ is loop gain controlling decay rate
+
+**Brightness mapping**:
+
+$$
+S = \frac{B}{2}, \quad b_1 = 0.5 \cdot B, \quad b_0 = 1.0 - b_1
+$$
+
+**Decay time calculation**:
+
+$$
+\rho = 0.001^{\frac{P \cdot T}{t_{60}}}
+$$
+
+where $P$ is period (samples), $T$ is sample interval, $t_{60}$ is -60 dB decay time.
+
+**Characteristics**:
+- DC gain = $\rho$ (infinite decay at DC when $\rho=1$)
+- Fastest decay at $S = 0.5$ (original Karplus-Strong)
+- Higher frequencies decay faster than lower frequencies
+
+---
+
+### 2.2 Two-Zero String Damping Filter (Linear Phase)
+
+For improved tuning invariance, a symmetric FIR filter is used:
+
+$$
+H_d(z) = \rho[g_1 + g_0 \cdot z^{-1} + g_1 \cdot z^{-2}]
+$$
+
+$$
+= \rho \cdot z^{-1}[g_0 + g_1(z + z^{-1})]
+$$
+
+**Impulse response**:
+
+$$
+h_d = [g_1, g_0, g_1, 0, 0, \ldots]
+$$
+
+Symmetric around time $n=1$ (linear phase property).
+
+**Coefficients from brightness**:
+
+$$
+h_0 = \frac{1 + B}{2} \quad \text{(center tap)}
+$$
+
+$$
+h_1 = \frac{1 - B}{4} \quad \text{(side taps)}
+$$
+
+**Implementation**:
+
+$$
+y_{\text{damp}}[n] = \rho \cdot [h_0 \cdot x[n-1] + h_1 \cdot (x[n] + x[n-2])]
+$$
+
+**Loop gain**:
+
+$$
+\rho = 0.001^{\frac{1}{f \cdot t_{60}}}
+$$
+
+**Advantages**:
+- Linear phase (no phase distortion)
+- Better tuning invariance than one-zero
+- Symmetric impulse response reduces computational complexity
+
+---
+
+### 2.3 Pick-Position Comb Filter
+
+Models the effect of plucking at position $\beta$ along the string:
+
+$$
+H_\beta(z) = 1 - z^{-\lfloor \beta N + \frac{1}{2} \rfloor}
+$$
+
+where:
+- $\beta \in (0, 0.5)$ is normalized pick position ($0$ = bridge, $0.5$ = center)
+- $N = P$ is period in samples
+- Delay = $\lfloor \beta N + 0.5 \rfloor$ (rounded to nearest integer)
+- Feedforward gain = $-1$ (inverts and subtracts delayed signal)
+
+**Spectral effect**: Creates nulls at frequencies $f_k = \frac{k}{\beta \cdot T}$ for integer $k$.
+
+**Physical interpretation**: Plucking at position $\beta$ cannot excite harmonics with nodes at that location.
+
+---
+
+### 2.4 Dynamic-Level Lowpass Filter
+
+Compensates for high-frequency loss based on playing dynamics.
+
+**Continuous-time (analog)**:
+
+$$
+H_{L,\omega_1}(s) = \frac{\omega_1}{s + \omega_1}
+$$
+
+where $\omega_1 = 2\pi f_1$ (fundamental angular frequency).
+
+**Discrete-time (bilinear transform)**:
+
+$$
+H_{L,\omega_1}(z) = \frac{\tilde{\omega}_1}{1+\tilde{\omega}_1} \cdot \frac{1+z^{-1}}{1-\frac{1-\tilde{\omega}_1}{1+\tilde{\omega}_1} \cdot z^{-1}}
+$$
+
+where $\tilde{\omega}_1 = \frac{\omega_1 T}{2}$ (prewarped frequency).
+
+**Simplified IIR form**:
+
+$$
+H_L(z) = g \cdot \frac{1+z^{-1}}{1-a_1 \cdot z^{-1}}
+$$
+
+**Dynamic blending**:
+
+$$
+y_{\text{out}}[n] = L \cdot L_0(L) \cdot x[n] + (1-L) \cdot y_{\text{LP}}[n]
+$$
+
+where:
+- $L \in [0,1]$ is level parameter (from `dynamic_level` slider)
+- $L_0(L) = L^{1/3}$ attenuates low levels
+- $y_{\text{LP}}[n]$ is lowpass-filtered signal
+
+**Characteristics**:
+- Unity DC gain
+- -3 dB at fundamental frequency $f_1$
+- -6 dB/octave rolloff above $f_1$
+- Bypassed at $L=1$ (maximum dynamics)
+
+---
+
+### 2.5 Fundamental Period and Frequency Relationship
+
+**Basic relationship**:
+
+$$
+P = \frac{f_s}{f}
+$$
+
+where $f_s$ is sample rate and $f$ is fundamental frequency.
+
+**With fractional delay** (for fine tuning):
+
+$$
+\text{Total Delay} = P - 2 + \eta
+$$
+
+where $\eta \in [0,1)$ is fractional delay for precise tuning.
+
+---
+
+### 2.6 Excitation Signal (Noise Burst)
+
+**Trigger function**:
+
+$$
+g_{\text{trigger}}(n) = g \cdot \mathbb{1}_{\{\text{release}(P) > 0\}}
+$$
+
+where $\mathbb{1}$ is the indicator function.
+
+**Release envelope**:
+
+$$
+\text{release}(n) = \sum_{k} \text{decay}(n, x_k)
+$$
+
+$$
+\text{decay}(n,x) = x - \frac{\mathbb{1}_{\{x>0\}}}{n}
+$$
+
+Creates exponential decay with time constant proportional to period $P$.
+
+**Physical interpretation**: Simulates initial displacement of string at pluck time, with energy proportional to plucking force.
+
+---
+
+## 3. System Architecture
+
+### 3.1 EKS Physical Model Diagram
+
+```mermaid
+graph TB
+    subgraph "EKS Physical Model"
+        N[White Noise] --> G{Gate?}
+        G -->|Trigger| E[Excitation<br/>Burst Generator]
+        E --> S[Smooth<br/>pick_angle]
+        S --> PP[Pick Position<br/>Comb Filter<br/>β·P delay]
+        PP --> LF[Level Filter<br/>HF Compensation]
+        LF --> DL[Delay Line<br/>P-2 samples]
+
+        DL --> OUT[Output]
+        DL --> DF[Damping Filter<br/>ρ · FIR3 LPF]
+        DF --> FB((+))
+        LF --> FB
+        FB --> DL
+
+        P[Period P<br/>= SR/freq] -.-> DL
+        P -.-> PP
+        T60[Decay T60] -.-> DF
+        BR[Brightness B] -.-> DF
+    end
+
+    classDef exciteStyle stroke:#f96,stroke-width:3px
+    classDef delayStyle stroke:#4ecdc4,stroke-width:3px
+    classDef dampStyle stroke:#95e1d3,stroke-width:3px
+    classDef outStyle stroke:#ffd93d,stroke-width:3px
+
+    class E exciteStyle
+    class DL delayStyle
+    class DF dampStyle
+    class OUT outStyle
 ```
 
-## Files
+### 3.2 Sequencer Implementation
 
-- **`eks_with_mod.dsp`** - Main implementation with modulation and reverb (recommended)
-- **`eks_guitar.dsp`** - Original EKS from Julius Smith (fixed syntax)
-- **`eks_sequencer_test.dsp`** - Working sequencer test version
-- **`bass_sequencer.dsp`** - Simple bass sequencer example
+```mermaid
+graph TB
+    UI[User Interface] --> NR[note_rate Hz]
+    UI --> RUN[run_sequencer]
 
-## Parameters
+    NR --> CLK[Clock Generator<br/>os.lf_imptrain]
+    RUN --> CLK
 
-### Sequencer
-- **run_sequencer** (checkbox): Start/stop the sequencer
-- **note_rate** (1-30 Hz): Clock speed (12 Hz = 16th notes at 180 BPM)
-- **root_note** (MIDI 36-72): Base pitch (default E3 = 64)
+    CLK -->|Impulse| SEQ[Step Counter<br/>ba.pulse_countup_loop<br/>0-31]
+    SEQ --> NOTE[Note Lookup<br/>note_at_step]
+    NOTE --> MIDI[MIDI Note<br/>root + offset]
+    MIDI --> FREQ[ba.midikey2hz]
 
-### EKS Synthesis
-- **gain** (0-10): Output level
-- **pick_angle** (0-0.9): Pick sharpness (higher = brighter attack)
-- **pick_position** (0.02-0.5): Where string is plucked (0.13 = default)
-- **decaytime_T60** (0-10s): String decay time (1s for fast arpeggios)
-- **brightness** (0-1): High-frequency content (0.7 = bright)
-- **dynamic_level** (-60 to 0 dB): Nyquist-limit level
+    CLK -->|Gate| GATE[Gate Signal]
+    FREQ --> EKS[EKS Synth]
+    GATE --> EKS
 
-### Spatial
-- **center-panned spatial width** (0-1): Stereo width
-- **pan angle** (0-1): Base stereo position (0=left, 0.5=center, 1=right)
-- **mod_rate** (0.01-10 Hz): LFO speed for auto-panning (0.5 Hz default)
-- **mod_depth** (0-1): How much LFO affects panning (0.5 default)
+    EKS --> OUT[Stereo Audio Output]
+
+    classDef uiStyle stroke:#f96,stroke-width:3px
+    classDef clockStyle stroke:#4ecdc4,stroke-width:3px
+    classDef noteStyle stroke:#95e1d3,stroke-width:3px
+    classDef eksStyle stroke:#f38181,stroke-width:3px
+    classDef outStyle stroke:#ffd93d,stroke-width:3px
+
+    class UI,NR,RUN uiStyle
+    class CLK,SEQ clockStyle
+    class NOTE,MIDI,FREQ noteStyle
+    class EKS,GATE eksStyle
+    class OUT outStyle
+```
+
+### 3.3 Modulation and Stereo Processing
 
 ```mermaid
 graph LR
@@ -87,399 +343,155 @@ graph LR
     class SP panStyle
 ```
 
-### Reverb
-- **reverb_mix** (0-1): Dry/wet balance (0.3 default)
-
-## Technical Details
-
-### Extended Karplus-Strong Algorithm
-
-The EKS algorithm extends the basic Karplus-Strong plucked string model with:
-
-1. **Excitation**: White noise burst shaped by pick angle
-2. **Pick Position Filter**: Comb filter modeling where string is plucked
-3. **String Loop**: Delay line set to fundamental period
-4. **Damping Filter**: Linear-phase FIR3 filter for frequency-dependent decay
-5. **Level Filter**: Compensates for high-frequency loss
-
-#### Physics & Mathematics
-
-The EKS algorithm uses several transfer functions and IIR/FIR filters to model string physics:
-
-##### 1. One-Zero String Damping Filter
-
-The simplest damping filter uses a single pole/zero pair:
-
-**Transfer Function**:
-
-$$H_d(z) = \rho[(1-S) + S \cdot z^{-1}]$$
-
-**Difference Equation**:
-
-$$y(n) = \rho[b_0 \cdot x(n) + b_1 \cdot x(n-1)]$$
-
-where:
-- $S \in [0,1]$ is the stretching factor
-- $b_0 = 1 - S$ (feed-forward coefficient at $n$)
-- $b_1 = S$ (feed-forward coefficient at $n-1$)
-- $\rho \in (0,1)$ is loop gain for decay control
-
-**Brightness Mapping**:
-
-$$S = \frac{B}{2}$$
-
-$$b_1 = 0.5 \cdot B$$
-
-$$b_0 = 1.0 - b_1$$
-
-**Decay Time Calculation**:
-
-$$\rho = 0.001^{\frac{P \cdot T}{t_{60}}}$$
-
-where $P$ is period, $T$ is sample interval, $t_{60}$ is -60dB decay time
-
-**Characteristics**:
-- DC gain = $\rho$ (infinite decay at DC when $\rho=1$)
-- Fastest decay at $S = 0.5$ (original Karplus-Strong)
-- Higher frequencies decay faster than lower frequencies
-
-##### 2. Two-Zero String Damping Filter (Linear Phase)
-
-Our implementation uses this symmetric FIR filter for better tuning:
-
-**Transfer Function**:
-
-$$H_d(z) = \rho[g_1 + g_0 \cdot z^{-1} + g_1 \cdot z^{-2}]$$
-
-$$= \rho \cdot z^{-1}[g_0 + g_1(z + z^{-1})]$$
-
-**Impulse Response**:
-
-$$h_d = [g_1, g_0, g_1, 0, 0, ...]$$
-
-Symmetric around time $n=1$ (linear phase property)
-
-**Coefficients from Brightness**:
-
-$$h_0 = \frac{1 + B}{2} \quad \text{(center tap)}$$
-
-$$h_1 = \frac{1 - B}{4} \quad \text{(side taps)}$$
-
-**Implementation**:
-
-$$\text{dampingfilter2}(x) = \rho \cdot [h_0 \cdot x' + h_1 \cdot (x + x'')]$$
-
-where $x'$ is $x$ delayed by 1 sample, $x''$ is $x$ delayed by 2 samples
-
-**Loop Gain**:
-
-$$\rho = 0.001^{\frac{1}{f \cdot t_{60}}}$$
-
-**Advantages**:
-- Linear phase (no phase distortion)
-- Better tuning invariance than one-zero
-- Symmetric impulse response reduces computation
-
-##### 3. Pick-Position Comb Filter
-
-Models the effect of plucking at position $\beta$ along the string:
-
-**Transfer Function**:
-
-$$H_\beta(z) = 1 - z^{-\lfloor \beta N + \frac{1}{2} \rfloor}$$
-
-**Implementation**:
-
-```faust
-pickposfilter = ffcombfilter(Pmax, β·P, -1)
-```
-
-where:
-- $\beta \in (0, 0.5)$ is normalized pick position ($0$ = bridge, $0.5$ = center)
-- $N = P$ is period in samples
-- Delay = $\lfloor \beta N + 0.5 \rfloor$ (rounded to nearest integer)
-- Feedforward gain = $-1$ (inverts and subtracts delayed signal)
-
-**Effect**: Creates nulls in spectrum at multiples of $\frac{1}{\beta}$
-
-##### 4. Dynamic-Level Lowpass Filter
-
-Compensates for high-frequency loss based on playing dynamics:
-
-**Continuous-Time (Analog)**:
-
-$$H_{L,\omega_1}(s) = \frac{\omega_1}{s + \omega_1}$$
-
-where $\omega_1 = 2\pi f_1$ (fundamental frequency in rad/s)
-
-**Discrete-Time (Bilinear Transform)**:
-
-$$H_{L,\omega_1}(z) = \frac{\tilde{\omega}_1}{1+\tilde{\omega}_1} \cdot \frac{1+z^{-1}}{1-\frac{1-\tilde{\omega}_1}{1+\tilde{\omega}_1} \cdot z^{-1}}$$
-
-where $\tilde{\omega}_1 = \frac{\omega_1 T}{2}$ (prewarped frequency)
-
-**Simplified IIR Form**:
-
-$$H_L(z) = g \cdot \frac{1+z^{-1}}{1-a_1 \cdot z^{-1}}$$
-
-**Dynamic Blending**:
-
-$$\text{output} = L \cdot L_0(L) \cdot x(n) + (1-L) \cdot y(n)$$
-
-where:
-- $L \in [0,1]$ is level parameter (from `dynamic_level` slider)
-- $L_0(L) = L^{1/3}$ attenuates low levels
-- $x(n)$ is unfiltered input
-- $y(n)$ is lowpass-filtered signal
-
-**Characteristics**:
-- Unity DC gain
-- -3 dB at fundamental frequency
-- -6 dB/octave rolloff above $f_1$
-- Bypassed at $L=1$ (maximum dynamics)
-
-##### 5. Fundamental Period
-
-**Basic Relationship**:
-
-$$P = \frac{f_s}{f}$$
-
-where $f_s$ is sample rate and $f$ is fundamental frequency
-
-**With Fractional Delay** (for fine tuning):
-
-$$\text{Total Delay} = P - 2 + \eta$$
-
-where $\eta$ is fractional delay for precise tuning
-
-##### 6. Excitation Signal (Noise Burst)
-
-**Trigger Function**:
-
-$$\text{trigger}(g, P) = g \cdot [\text{release}(P) > 0]$$
-
-**Release Envelope**:
-
-$$\text{release}(n) = \sum \text{decay}(n, x) \quad \text{where} \quad \text{decay}(n,x) = x - \frac{x>0}{n}$$
-
-Creates exponential decay with time constant proportional to period $P$
+---
+
+## 4. Parameters
+
+### 4.1 Sequencer
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| `run_sequencer` | {0,1} | 0 | Start/stop sequencer |
+| `note_rate` | 1-30 Hz | 12 Hz | Clock speed (12 Hz = 16th notes at 180 BPM) |
+| `root_note` | MIDI 36-72 | 64 (E3) | Base pitch |
+
+### 4.2 EKS Synthesis
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| `gain` | 0-10 | 1.0 | Output level |
+| `pick_angle` | 0-0.9 | 0.9 | Pick sharpness (higher = brighter attack) |
+| `pick_position` | 0.02-0.5 | 0.13 | Pluck position ($\beta$) |
+| `decaytime_T60` | 0-10 s | 1.0 s | String decay time |
+| `brightness` | 0-1 | 0.7 | High-frequency content ($B$) |
+| `dynamic_level` | -60 to 0 dB | -10 dB | Nyquist-limit level ($L$) |
+
+### 4.3 Spatial
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| `spatial_width` | 0-1 | 0.5 | Stereo width |
+| `pan_angle` | 0-1 | 0.5 | Base stereo position (0=L, 0.5=C, 1=R) |
+| `mod_rate` | 0.01-10 Hz | 0.5 Hz | LFO speed for auto-panning |
+| `mod_depth` | 0-1 | 0.5 | LFO modulation depth |
+
+### 4.4 Reverb
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| `reverb_mix` | 0-1 | 0.3 | Dry/wet balance |
 
 ---
 
-**Physical Interpretation**:
+## 5. Installation and Usage
 
-These equations combine to model:
-- **String vibration**: Delay line = wave propagation time
-- **Energy loss**: $\rho < 1$ causes amplitude decay over time
-- **Frequency-dependent damping**: Higher harmonics decay faster ($B$ parameter)
-- **Pluck position**: $\beta$ determines which harmonics are excited
-- **Playing dynamics**: $L$ adjusts high-frequency content based on force
-- **Realistic decay**: $t_{60}$ matches real string behavior
+### 5.1 Faust Web IDE (Quick Start)
 
-The result is a computationally efficient physical model that captures the essential behavior of a plucked string.
+1. Navigate to [https://faustide.grame.fr/](https://faustide.grame.fr/)
+2. Copy contents of `eks_guitar_sequencer_final.dsp`
+3. Click "Run" to compile
+4. Enable `run_sequencer` checkbox
+5. Adjust `note_rate` slider for tempo control
 
-```mermaid
-graph TB
-    subgraph "EKS Physical Model"
-        N[White Noise] --> G{Gate?}
-        G -->|Trigger| E[Excitation<br/>Burst Generator]
-        E --> S[Smooth<br/>pick_angle]
-        S --> PP[Pick Position<br/>Comb Filter<br/>β·P delay]
-        PP --> LF[Level Filter<br/>HF Compensation]
-        LF --> DL[Delay Line<br/>P-2 samples]
+### 5.2 Local Compilation
 
-        DL --> OUT[Output]
-        DL --> DF[Damping Filter<br/>ρ · FIR3 LPF]
-        DF --> FB((+))
-        LF --> FB
-        FB --> DL
+```bash
+# Compile to C++
+faust eks_with_mod.dsp -o eks_with_mod.cpp
 
-        P[Period P<br/>= SR/freq] -.-> DL
-        P -.-> PP
-        T60[Decay T60] -.-> DF
-        BR[Brightness B] -.-> DF
-    end
-
-    classDef exciteStyle stroke:#ff6b6b,stroke-width:3px
-    classDef delayStyle stroke:#4ecdc4,stroke-width:3px
-    classDef dampStyle stroke:#95e1d3,stroke-width:3px
-    classDef outStyle stroke:#ffd93d,stroke-width:3px
-
-    class E exciteStyle
-    class DL delayStyle
-    class DF dampStyle
-    class OUT outStyle
+# Compile to various targets
+faust2jaqt eks_with_mod.dsp        # JACK Qt application
+faust2alsa eks_with_mod.dsp        # ALSA standalone
+faust2vst eks_with_mod.dsp         # VST plugin
+faust2daisy eks_with_mod.dsp       # Electrosmith Daisy
+faust2bela eks_with_mod.dsp        # Bela platform
 ```
 
-### Sequencer Implementation
+---
 
-Uses `os.lf_imptrain()` to generate clock pulses at a specified Hz rate, driving a 32-step pattern through E minor pentatonic-inspired arpeggios.
+## 6. Project Structure
 
-```mermaid
-graph TB
-    UI[User Interface] --> NR[note_rate Hz]
-    UI --> RUN[run_sequencer]
-
-    NR --> CLK[Clock Generator<br/>os.lf_imptrain]
-    RUN --> CLK
-
-    CLK -->|Impulse| SEQ[Step Counter<br/>ba.pulse_countup_loop<br/>0-31]
-    SEQ --> NOTE[Note Lookup<br/>note_at_step]
-    NOTE --> MIDI[MIDI Note<br/>root + offset]
-    MIDI --> FREQ[ba.midikey2hz]
-
-    CLK -->|Gate| GATE[Gate Signal]
-    FREQ --> EKS[EKS Synth]
-    GATE --> EKS
-
-    EKS --> OUT[Stereo Audio Output]
-
-    classDef uiStyle stroke:#ff6b6b,stroke-width:3px
-    classDef clockStyle stroke:#4ecdc4,stroke-width:3px
-    classDef noteStyle stroke:#95e1d3,stroke-width:3px
-    classDef eksStyle stroke:#f38181,stroke-width:3px
-    classDef outStyle stroke:#ffd93d,stroke-width:3px
-
-    class UI,NR,RUN uiStyle
-    class CLK,SEQ clockStyle
-    class NOTE,MIDI,FREQ noteStyle
-    class EKS,GATE eksStyle
-    class OUT outStyle
+```
+EKS/
+├── eks_guitar_sequencer_final.dsp   # Main implementation (recommended)
+├── eks_with_mod.dsp                 # Version with modulation + reverb
+├── eks_guitar.dsp                   # Original EKS (fixed syntax)
+├── eks_sequencer_test.dsp           # Sequencer test version
+├── bass_sequencer.dsp               # Bass sequencer example
+├── experiments/                     # Development versions
+└── README.md
 ```
 
-#### Arpeggio Pattern (32 Steps)
+---
 
-```mermaid
-graph LR
-    subgraph "Steps 0-15: Main Pattern"
-        S0[0: E] --> S1[1: G]
-        S1 --> S2[2: B]
-        S2 --> S3[3: E+8]
-        S3 --> S4[4: G+8]
-        S4 --> S5[5: E+8]
-        S5 --> S6[6: B]
-        S6 --> S7[7: G]
-        S7 --> S8[8: E]
-        S8 --> S9[9: B]
-        S9 --> S10[10: E+8]
-        S10 --> S11[11: G+8]
-        S11 --> S12[12: B+8]
-        S12 --> S13[13: G+8]
-        S13 --> S14[14: E+8]
-        S14 --> S15[15: B]
-    end
+## 7. Sequencer Pattern (E Minor Pentatonic)
 
-    subgraph "Steps 16-31: Variation"
-        S16[16: A] --> S17[17: B]
-        S17 --> S18[18: E+8]
-        S18 --> S19[19: F#]
-        S19 --> S20[20: E+8]
-        S20 --> S21[21: B]
-        S21 --> S22[22: A]
-        S22 --> S23[23: G]
-        S23 --> S24[24: E]
-        S24 --> S25[25: B]
-        S25 --> S26[26: E+8]
-        S26 --> S27[27: G+8]
-        S27 --> S28[28: E+8]
-        S28 --> S29[29: B]
-        S29 --> S30[30: A]
-        S30 --> S31[31: G]
-    end
+The 32-step pattern creates cascading arpeggios through E minor pentatonic scale:
 
-    S15 --> S16
-    S31 -.Loop.-> S0
+**Steps 0-15** (main pattern): E, G, B, E+octave, with ascending/descending motion
 
-    classDef mainPattern stroke:#90EE90,stroke-width:3px
-    classDef variation stroke:#FFB6C1,stroke-width:3px
+**Steps 16-31** (variation): Introduces A and F# passing tones
 
-    class S0 mainPattern
-    class S16 variation
-```
+**Musical context**: Inspired by progressive rock keyboard arpeggios (e.g., Rick Wakeman's style in Yes - "Roundabout").
 
-### Signal Flow
+**Tempo mapping**:
+- 6-8 Hz: Slower, deliberate
+- 12 Hz: 16th notes at 180 BPM (sweet spot)
+- 20-24 Hz: Rapid, virtuosic runs
 
-```mermaid
-graph TD
-    A[White Noise] --> B[Noiseburst<br/>Gate Trigger]
-    B --> C[Pick Smoothing<br/>pick_angle]
-    C --> D[Pick Position Filter<br/>Comb Filter]
-    D --> E[Level Filter<br/>HF Compensation]
-    E --> F[String Loop<br/>Delay + Feedback]
-    F --> G{Split to Stereo}
-    G --> H1[Direct L]
-    G --> H2[Width Delay<br/>Decorrelation]
-    H1 --> I[Stereo Panner<br/>LFO Modulated]
-    H2 --> I
-    I --> J1[Dry L]
-    I --> J2[Dry R]
-    J1 --> K1[Mix]
-    J2 --> K2[Mix]
-    J1 --> L[Zita Reverb]
-    J2 --> L
-    L --> M1[Wet L]
-    L --> M2[Wet R]
-    M1 --> K1
-    M2 --> K2
-    K1 --> N1[Output L]
-    K2 --> N2[Output R]
+---
 
-    F -.Feedback Loop.-> O[Damping Filter<br/>FIR3 LPF]
-    O -.-> F
+## 8. References
 
-    classDef stringStyle stroke:#4ecdc4,stroke-width:3px
-    classDef panStyle stroke:#ff6b6b,stroke-width:3px
-    classDef reverbStyle stroke:#95e1d3,stroke-width:3px
+### Foundational Papers
 
-    class F,O stringStyle
-    class I panStyle
-    class L reverbStyle
-```
+- Karplus, K., & Strong, A. (1983). "Digital Synthesis of Plucked-String and Drum Timbres". *Computer Music Journal*, 7(2), 43-55.
+- Smith, J. O. (2010). "Physical Audio Signal Processing for Virtual Musical Instruments and Audio Effects". CCRMA, Stanford University. [https://ccrma.stanford.edu/~jos/pasp/](https://ccrma.stanford.edu/~jos/pasp/)
 
-## Musical Notes
+### Digital Waveguide Theory
 
-The default pattern cycles through:
-- **E minor pentatonic**: E, G, B, with octave jumps and passing tones
-- **32 steps**: Creates flowing, cascading arpeggios
-- **Inspired by**: Progressive rock piano arpeggios (think Yes - "Roundabout" style)
+- Smith, J. O. (1992). "Physical Modeling Using Digital Waveguides". *Computer Music Journal*, 16(4), 74-91.
+- Välimäki, V., et al. (2006). "Discrete-Time Modeling of Musical Instruments". *Reports on Progress in Physics*, 69(1), 1-78.
 
-Adjust `note_rate` for different feels:
-- **6-8 Hz**: Slower, more deliberate
-- **12 Hz**: 16th notes at 180 BPM (sweet spot)
-- **20-24 Hz**: Rapid, virtuosic runs
+### Faust Language
 
-## Credits
-
-- **Original EKS Algorithm**: Julius O. Smith III (CCRMA, Stanford)
-- **Reference**: [Virtual Electric Guitars](http://ccrma.stanford.edu/~jos/pasp/vegf.html)
-- **Faust Implementation**: Modified from Julius Smith's examples
-- **License**: STK-4.3
-
-## References
-
+- Orlarey, Y., Fober, D., & Letz, S. (2009). "FAUST: an Efficient Functional Approach to DSP Programming". *New Computational Paradigms for Computer Music*, Editions Delatour, France.
 - [Faust Programming Language](https://faust.grame.fr/)
-- [Julius Smith's Physical Audio Signal Processing](https://ccrma.stanford.edu/~jos/pasp/)
-- [Karplus-Strong Algorithm](https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis)
-
-## Demo
-
-Perfect for 30-second progressive rock demo clips showcasing physical modeling synthesis!
 
 ---
 
-**Repository**: [github.com/Ziforge/EKS](https://github.com/Ziforge/EKS) (Public)
-**License**: STK-4.3 (Synthesis Toolkit)
-**Created**: 2025
-**Status**: Active Development
+## 9. License
 
-## Contributing
+This project uses the **STK-4.3 license** (Synthesis Toolkit), following the original EKS implementation by Julius O. Smith III. The code is free to use for research and educational purposes.
 
-This is an open-source educational project based on Julius O. Smith III's work. Contributions are welcome! Feel free to:
-- Report issues
-- Submit pull requests
-- Fork for your own experiments
-- Share improvements to the algorithm or sequencer
+---
 
-## License
+## 10. Author
 
-This project uses the STK-4.3 license, following the original EKS implementation. The code is free to use for research and educational purposes.
+**George Redpath** (Ziforge)
+- GitHub: [@Ziforge](https://github.com/Ziforge)
+- Based on: Julius O. Smith III's EKS algorithm
+
+---
+
+## 11. Acknowledgments
+
+- **Julius O. Smith III** - Original Extended Karplus-Strong algorithm and implementation
+- **CCRMA, Stanford University** - Physical audio signal processing research
+- **Faust Community** - DSP programming language and compiler
+- **STK Project** - Synthesis Toolkit framework
+
+---
+
+## 12. Citation
+
+```bibtex
+@misc{redpath2025eks,
+  author = {Redpath, George},
+  title = {Extended Karplus-Strong Guitar Synthesizer},
+  year = {2025},
+  publisher = {GitHub},
+  url = {https://github.com/Ziforge/EKS},
+  note = {Based on Smith, J.O. (2010) Physical Audio Signal Processing}
+}
+```
