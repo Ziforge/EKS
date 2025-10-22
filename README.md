@@ -40,9 +40,103 @@ The EKS extends the basic Karplus-Strong (1983) with:
 
 ---
 
-## 2. Mathematical Foundations
+## 2. Equation Key & Symbol Reference
 
-### 2.1 One-Zero String Damping Filter
+### 2.1 General Symbols
+
+| Symbol | Name | Description | Units/Range |
+|--------|------|-------------|-------------|
+| $z$ | Z-transform variable | Complex frequency variable in discrete-time domain | $z = e^{j\omega T}$ |
+| $z^{-1}$ | Unit delay operator | Delays signal by one sample | - |
+| $n$ | Sample index | Discrete time index | $n \in \mathbb{Z}$ |
+| $x[n]$ | Input signal | Discrete-time input at sample $n$ | - |
+| $y[n]$ | Output signal | Discrete-time output at sample $n$ | - |
+| $T$ | Sample period | Time between samples = $1/f_s$ | seconds |
+| $f_s$ | Sample rate | Samples per second (typically 44.1 or 48 kHz) | Hz |
+| $f$ | Frequency | Fundamental frequency of string | Hz |
+| $f_1$ | Fundamental frequency | Same as $f$ (used in filter equations) | Hz |
+
+### 2.2 Transfer Functions & Filters
+
+| Symbol | Name | Description | Range |
+|--------|------|-------------|-------|
+| $H_d(z)$ | Damping filter | Z-domain transfer function for string damping | - |
+| $H_\beta(z)$ | Pick-position filter | Comb filter modeling pluck location | - |
+| $H_L(z)$ | Level lowpass filter | Dynamic-level compensation filter | - |
+| $H_{L,\omega_1}(s)$ | Analog lowpass | Continuous-time lowpass prototype | - |
+| $\rho$ | Loop gain | Controls overall decay rate of string | $(0, 1]$ |
+| $S$ | Stretching factor | Controls frequency-dependent damping | $[0, 1]$ |
+| $B$ | Brightness | High-frequency content parameter | $[0, 1]$ |
+
+### 2.3 Filter Coefficients
+
+| Symbol | Name | Description | Derivation |
+|--------|------|-------------|------------|
+| $b_0$ | Feedforward coefficient 0 | Current sample weight | $b_0 = 1 - S$ |
+| $b_1$ | Feedforward coefficient 1 | Delayed sample weight | $b_1 = S$ |
+| $g_0$ | Center tap coefficient | FIR3 center tap | $g_0 = h_0 = \frac{1+B}{2}$ |
+| $g_1$ | Side tap coefficient | FIR3 side taps (symmetric) | $g_1 = h_1 = \frac{1-B}{4}$ |
+| $h_0$ | Impulse response (center) | Same as $g_0$ | - |
+| $h_1$ | Impulse response (sides) | Same as $g_1$ | - |
+| $a_1$ | Recursive coefficient | IIR feedback coefficient | $a_1 = \frac{1-\tilde{\omega}_1}{1+\tilde{\omega}_1}$ |
+
+### 2.4 String Physical Parameters
+
+| Symbol | Name | Description | Typical Range |
+|--------|------|-------------|---------------|
+| $P$ | Period | String fundamental period in samples | $P = f_s / f$ |
+| $N$ | Period (alternate) | Same as $P$ in pick-position equations | - |
+| $t_{60}$ | Decay time | Time for -60 dB amplitude decay | 0.1 - 10 seconds |
+| $\beta$ | Pick position | Normalized pluck location (0=bridge, 0.5=center) | $(0, 0.5)$ |
+| $\eta$ | Fractional delay | Fine-tuning fractional delay | $[0, 1)$ |
+| $L$ | Dynamic level | Playing dynamics / velocity | $[0, 1]$ |
+
+### 2.5 Angular Frequency
+
+| Symbol | Name | Description | Units |
+|--------|------|-------------|-------|
+| $\omega$ | Angular frequency | $\omega = 2\pi f$ | rad/s |
+| $\omega_1$ | Fundamental angular freq | $\omega_1 = 2\pi f_1$ | rad/s |
+| $\tilde{\omega}_1$ | Prewarped frequency | $\tilde{\omega}_1 = \frac{\omega_1 T}{2}$ | radians |
+| $s$ | Laplace variable | Complex frequency in continuous time | $s = \sigma + j\omega$ |
+
+### 2.6 Special Functions & Operators
+
+| Symbol | Name | Description |
+|--------|------|-------------|
+| $\mathbb{1}_{\{condition\}}$ | Indicator function | 1 if condition true, 0 otherwise |
+| $\lfloor x \rfloor$ | Floor function | Largest integer ≤ $x$ |
+| $\lfloor x + 0.5 \rfloor$ | Round function | Nearest integer to $x$ |
+| $\cdot$ | Multiplication | Scalar or element-wise multiplication |
+| $+$ | Addition | Summation operator |
+
+### 2.7 Sequencer & Modulation
+
+| Symbol | Name | Description | Range |
+|--------|------|-------------|-------|
+| $k$ | Step index | Current sequencer step | $0$ to $31$ |
+| $g$ | Gate/trigger | Binary trigger signal | $\{0, 1\}$ |
+| $g_{\text{trigger}}(n)$ | Trigger function | Gate at sample $n$ | - |
+
+### 2.8 Key Relationships
+
+**Period-Frequency relationship:**
+$$P = \frac{f_s}{f}$$
+
+**Loop gain from decay time:**
+$$\rho = 0.001^{\frac{1}{f \cdot t_{60}}} = 10^{-3/(f \cdot t_{60})}$$
+
+**Brightness to filter coefficients:**
+$$h_0 = \frac{1+B}{2}, \quad h_1 = \frac{1-B}{4}$$
+
+**Pick-position delay (samples):**
+$$\text{delay} = \lfloor \beta \cdot P + 0.5 \rfloor$$
+
+---
+
+## 3. Mathematical Foundations
+
+### 3.1 One-Zero String Damping Filter
 
 The simplest damping filter uses a single zero:
 
@@ -83,7 +177,7 @@ where $P$ is period (samples), $T$ is sample interval, $t_{60}$ is -60 dB decay 
 
 ---
 
-### 2.2 Two-Zero String Damping Filter (Linear Phase)
+### 3.2 Two-Zero String Damping Filter (Linear Phase)
 
 For improved tuning invariance, a symmetric FIR filter is used:
 
@@ -132,7 +226,7 @@ $$
 
 ---
 
-### 2.3 Pick-Position Comb Filter
+### 3.3 Pick-Position Comb Filter
 
 Models the effect of plucking at position $\beta$ along the string:
 
@@ -152,7 +246,7 @@ where:
 
 ---
 
-### 2.4 Dynamic-Level Lowpass Filter
+### 3.4 Dynamic-Level Lowpass Filter
 
 Compensates for high-frequency loss based on playing dynamics.
 
@@ -197,7 +291,7 @@ where:
 
 ---
 
-### 2.5 Fundamental Period and Frequency Relationship
+### 3.5 Fundamental Period and Frequency Relationship
 
 **Basic relationship**:
 
@@ -217,7 +311,7 @@ where $\eta \in [0,1)$ is fractional delay for precise tuning.
 
 ---
 
-### 2.6 Excitation Signal (Noise Burst)
+### 3.6 Excitation Signal (Noise Burst)
 
 **Trigger function**:
 
@@ -243,9 +337,9 @@ Creates exponential decay with time constant proportional to period $P$.
 
 ---
 
-## 3. System Architecture
+## 4. System Architecture
 
-### 3.1 EKS Physical Model Diagram
+### 4.1 EKS Physical Model Diagram
 
 ```mermaid
 graph TB
@@ -280,7 +374,7 @@ graph TB
     class OUT outStyle
 ```
 
-### 3.2 Sequencer Implementation
+### 4.2 Sequencer Implementation
 
 ```mermaid
 graph TB
@@ -314,7 +408,7 @@ graph TB
     class OUT outStyle
 ```
 
-### 3.3 Modulation and Stereo Processing
+### 4.3 Modulation and Stereo Processing
 
 ```mermaid
 graph LR
@@ -345,9 +439,9 @@ graph LR
 
 ---
 
-## 4. Parameters
+## 5. Parameters
 
-### 4.1 Sequencer
+### 5.1 Sequencer
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
@@ -355,7 +449,7 @@ graph LR
 | `note_rate` | 1-30 Hz | 12 Hz | Clock speed (12 Hz = 16th notes at 180 BPM) |
 | `root_note` | MIDI 36-72 | 64 (E3) | Base pitch |
 
-### 4.2 EKS Synthesis
+### 5.2 EKS Synthesis
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
@@ -366,7 +460,7 @@ graph LR
 | `brightness` | 0-1 | 0.7 | High-frequency content ($B$) |
 | `dynamic_level` | -60 to 0 dB | -10 dB | Nyquist-limit level ($L$) |
 
-### 4.3 Spatial
+### 5.3 Spatial
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
@@ -375,7 +469,7 @@ graph LR
 | `mod_rate` | 0.01-10 Hz | 0.5 Hz | LFO speed for auto-panning |
 | `mod_depth` | 0-1 | 0.5 | LFO modulation depth |
 
-### 4.4 Reverb
+### 5.4 Reverb
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
@@ -383,9 +477,9 @@ graph LR
 
 ---
 
-## 5. Installation and Usage
+## 6. Installation and Usage
 
-### 5.1 Faust Web IDE (Quick Start)
+### 6.1 Faust Web IDE (Quick Start)
 
 1. Navigate to [https://faustide.grame.fr/](https://faustide.grame.fr/)
 2. Copy contents of `eks_guitar_sequencer_final.dsp`
@@ -393,7 +487,7 @@ graph LR
 4. Enable `run_sequencer` checkbox
 5. Adjust `note_rate` slider for tempo control
 
-### 5.2 Local Compilation
+### 6.2 Local Compilation
 
 ```bash
 # Compile to C++
@@ -409,7 +503,7 @@ faust2bela eks_with_mod.dsp        # Bela platform
 
 ---
 
-## 6. Project Structure
+## 7. Project Structure
 
 ```
 EKS/
@@ -424,7 +518,7 @@ EKS/
 
 ---
 
-## 7. Sequencer Pattern (E Minor Pentatonic)
+## 8. Sequencer Pattern (E Minor Pentatonic)
 
 The 32-step pattern creates cascading arpeggios through E minor pentatonic scale:
 
@@ -441,7 +535,7 @@ The 32-step pattern creates cascading arpeggios through E minor pentatonic scale
 
 ---
 
-## 8. References
+## 9. References
 
 ### Foundational Papers
 
@@ -460,13 +554,13 @@ The 32-step pattern creates cascading arpeggios through E minor pentatonic scale
 
 ---
 
-## 9. License
+## 10. License
 
 This project uses the **STK-4.3 license** (Synthesis Toolkit), following the original EKS implementation by Julius O. Smith III. The code is free to use for research and educational purposes.
 
 ---
 
-## 10. Author
+## 11. Author
 
 **George Redpath** (Ziforge)
 - GitHub: [@Ziforge](https://github.com/Ziforge)
@@ -474,7 +568,7 @@ This project uses the **STK-4.3 license** (Synthesis Toolkit), following the ori
 
 ---
 
-## 11. Acknowledgments
+## 12. Acknowledgments
 
 - **Julius O. Smith III** - Original Extended Karplus-Strong algorithm and implementation
 - **CCRMA, Stanford University** - Physical audio signal processing research
@@ -483,7 +577,7 @@ This project uses the **STK-4.3 license** (Synthesis Toolkit), following the ori
 
 ---
 
-## 12. Citation
+## 13. Citation
 
 ```bibtex
 @misc{redpath2025eks,
