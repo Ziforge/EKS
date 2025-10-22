@@ -175,6 +175,13 @@ where $P$ is period (samples), $T$ is sample interval, $t_{60}$ is -60 dB decay 
 - Fastest decay at $S = 0.5$ (original Karplus-Strong)
 - Higher frequencies decay faster than lower frequencies
 
+**Perceptual Effect**:
+- **Low $\rho$ (0.5-0.7)**: String dies out quickly (plucked staccato, muted guitar)
+- **High $\rho$ (0.95-0.99)**: Long, ringing sustain (open strings, sitar-like drone)
+- **Low $S$ (0.0-0.3)**: Dull, dark tone (damped with palm, jazz tone)
+- **Medium $S$ (0.5)**: Classic Karplus-Strong pluck (vintage digital synth)
+- **High $S$ (0.7-1.0)**: Bright, metallic timbre (new steel strings, twangy)
+
 ---
 
 ### 3.2 Two-Zero String Damping Filter (Linear Phase)
@@ -224,6 +231,12 @@ $$
 - Better tuning invariance than one-zero
 - Symmetric impulse response reduces computational complexity
 
+**Perceptual Effect**:
+- **High $B$ (0.7-1.0)**: Bright, clear attack; harmonics ring clearly (fresh strings, aggressive pick attack)
+- **Medium $B$ (0.4-0.6)**: Balanced warmth and presence (well-worn strings, fingerstyle)
+- **Low $B$ (0.0-0.3)**: Dark, mellow sound; emphasizes fundamental (old flatwound strings, thumb picking)
+- **vs. One-Zero**: Sounds more "in-tune" across the frequency range; less detuning artifacts
+
 ---
 
 ### 3.3 Pick-Position Comb Filter
@@ -243,6 +256,13 @@ where:
 **Spectral effect**: Creates nulls at frequencies $f_k = \frac{k}{\beta \cdot T}$ for integer $k$.
 
 **Physical interpretation**: Plucking at position $\beta$ cannot excite harmonics with nodes at that location.
+
+**Perceptual Effect**:
+- **$\beta$ = 0.02-0.05 (near bridge)**: Thin, nasal, "honky" tone; emphasizes high harmonics (mandolin, banjo)
+- **$\beta$ = 0.13 (default)**: Realistic guitar pluck position; balanced harmonic content (standard guitar)
+- **$\beta$ = 0.25**: Rounder, fuller tone; some harmonics missing (classical guitar, neck pickup)
+- **$\beta$ = 0.4-0.5 (near center)**: Very soft, hollow sound; many harmonics cancelled (12th fret harmonic area)
+- **Spectral nulls**: Certain harmonics disappear completely, creating distinctive timbral "holes" in the sound
 
 ---
 
@@ -289,6 +309,13 @@ where:
 - -6 dB/octave rolloff above $f_1$
 - Bypassed at $L=1$ (maximum dynamics)
 
+**Perceptual Effect**:
+- **High $L$ (0 dB, near 1.0)**: Bright, snappy attack; full harmonic spectrum (hard pick attack, forte)
+- **Medium $L$ (-20 dB, ~0.1)**: Softer attack; slightly rolled-off highs (normal playing, mezzo-forte)
+- **Low $L$ (-40 to -60 dB, near 0)**: Very soft, muffled pluck; mostly fundamental (gentle finger pluck, pianissimo)
+- **Musical analogy**: Mimics how real strings sound duller when plucked softly vs. brightly when plucked hard
+- **Dynamic response**: Creates velocity-sensitive timbre, not just volume
+
 ---
 
 ### 3.5 Fundamental Period and Frequency Relationship
@@ -308,6 +335,11 @@ $$
 $$
 
 where $\eta \in [0,1)$ is fractional delay for precise tuning.
+
+**Perceptual Effect**:
+- **Without fractional delay ($\eta = 0$)**: Slight pitch inaccuracies; noticeable detuning on certain notes
+- **With fractional delay**: Perfect pitch tracking; all notes sound in-tune across the range
+- **Musical importance**: Essential for realistic instrument simulation; prevents "digital" detuning artifacts
 
 ---
 
@@ -334,6 +366,13 @@ $$
 Creates exponential decay with time constant proportional to period $P$.
 
 **Physical interpretation**: Simulates initial displacement of string at pluck time, with energy proportional to plucking force.
+
+**Perceptual Effect**:
+- **Noise burst**: Creates the initial "pluck" transient; sounds like the pick or finger hitting the string
+- **Broader burst**: Softer, gentler attack (fingerstyle)
+- **Narrow burst**: Sharp, percussive attack (hard pick, slap)
+- **White noise source**: Provides full-spectrum excitation that the resonant delay line filters into pitched tone
+- **Without excitation**: No sound (like a string that was never plucked)
 
 ---
 
@@ -451,29 +490,29 @@ graph LR
 
 ### 5.2 EKS Synthesis
 
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| `gain` | 0-10 | 1.0 | Output level |
-| `pick_angle` | 0-0.9 | 0.9 | Pick sharpness (higher = brighter attack) |
-| `pick_position` | 0.02-0.5 | 0.13 | Pluck position ($\beta$) |
-| `decaytime_T60` | 0-10 s | 1.0 s | String decay time |
-| `brightness` | 0-1 | 0.7 | High-frequency content ($B$) |
-| `dynamic_level` | -60 to 0 dB | -10 dB | Nyquist-limit level ($L$) |
+| Parameter | Range | Default | Description | Perceptual Effect |
+|-----------|-------|---------|-------------|-------------------|
+| `gain` | 0-10 | 1.0 | Output level | Overall volume control |
+| `pick_angle` | 0-0.9 | 0.9 | Pick sharpness (higher = brighter attack) | 0.0-0.3: soft/round attack; 0.5-0.7: normal; 0.8-0.9: sharp/percussive |
+| `pick_position` | 0.02-0.5 | 0.13 | Pluck position ($\beta$) | 0.02-0.05: bridge (thin/bright); 0.13: guitar (balanced); 0.25-0.5: neck (mellow/hollow) |
+| `decaytime_T60` | 0-10 s | 1.0 s | String decay time | 0.1-0.5s: muted/staccato; 1-2s: normal guitar; 5-10s: sustained/drone |
+| `brightness` | 0-1 | 0.7 | High-frequency content ($B$) | 0.0-0.3: dull/warm; 0.4-0.6: balanced; 0.7-1.0: bright/metallic |
+| `dynamic_level` | -60 to 0 dB | -10 dB | Nyquist-limit level ($L$) | -60 to -40: soft/muffled; -20 to -10: normal; 0: hard/bright attack |
 
 ### 5.3 Spatial
 
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| `spatial_width` | 0-1 | 0.5 | Stereo width |
-| `pan_angle` | 0-1 | 0.5 | Base stereo position (0=L, 0.5=C, 1=R) |
-| `mod_rate` | 0.01-10 Hz | 0.5 Hz | LFO speed for auto-panning |
-| `mod_depth` | 0-1 | 0.5 | LFO modulation depth |
+| Parameter | Range | Default | Description | Perceptual Effect |
+|-----------|-------|---------|-------------|-------------------|
+| `spatial_width` | 0-1 | 0.5 | Stereo width | 0: mono (centered); 0.5: moderate width; 1.0: wide stereo (immersive) |
+| `pan_angle` | 0-1 | 0.5 | Base stereo position (0=L, 0.5=C, 1=R) | 0: hard left; 0.5: center; 1.0: hard right |
+| `mod_rate` | 0.01-10 Hz | 0.5 Hz | LFO speed for auto-panning | 0.01-0.1: slow drift; 0.5-2: gentle movement; 5-10: fast tremolo-like |
+| `mod_depth` | 0-1 | 0.5 | LFO modulation depth | 0: static position; 0.5: moderate sweep; 1.0: full L-R sweep |
 
 ### 5.4 Reverb
 
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| `reverb_mix` | 0-1 | 0.3 | Dry/wet balance |
+| Parameter | Range | Default | Description | Perceptual Effect |
+|-----------|-------|---------|-------------|-------------------|
+| `reverb_mix` | 0-1 | 0.3 | Dry/wet balance | 0: completely dry; 0.3: subtle ambience; 0.5-0.7: hall reverb; 1.0: wet cathedral |
 
 ---
 
