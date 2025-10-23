@@ -5,19 +5,19 @@
 **Target Audience:** PhD candidates, academic researchers, and anyone requiring doctoral-level rigor in their work.
 
 **Last Updated:** October 23, 2025
-**Version:** 1.2 (PhD Standards Edition)
+**Version:** 1.3 (PhD Standards Edition - No Emojis)
 
 ---
 
 ## Quick Reference: Non-Negotiable Requirements
 
 **For ALL documents/papers:**
-- ✅ **Disclose AI usage:** Include AI assistance statement in acknowledgements or methods
-- ✅ **Avoid AI language:** No "notably", "importantly", "remarkably", "it's worth noting"
-- ✅ **First-person:** Use "I" for single-author work, not passive voice
-- ✅ **Cite primary sources:** Never cite without reading the original paper
-- ✅ **Pin dependencies:** Exact versions in requirements.txt (numpy==1.24.3)
-- ✅ **Validate algorithms:** Compare against analytical solutions or reference implementations
+- [YES] **Disclose AI usage:** Include AI assistance statement in acknowledgements or methods
+- [YES] **Avoid AI language:** No "notably", "importantly", "remarkably", "it's worth noting"
+- [YES] **First-person:** Use "I" for single-author work, not passive voice
+- [YES] **Cite primary sources:** Never cite without reading the original paper
+- [YES] **Pin dependencies:** Exact versions in requirements.txt (numpy==1.24.3)
+- [YES] **Validate algorithms:** Compare against analytical solutions or reference implementations
 
 **AI Disclosure Template (Required):**
 ```latex
@@ -28,10 +28,10 @@ this research.
 ```
 
 **Forbidden Phrases:**
-❌ "It's worth noting..." | ❌ "Importantly..." | ❌ "Remarkably..." | ❌ "Interestingly..."
+[NO] "It's worth noting..." | [NO] "Importantly..." | [NO] "Remarkably..." | [NO] "Interestingly..."
 
 **Required:**
-✅ Direct statements | ✅ First-person active voice | ✅ Precise measurements with units
+[YES] Direct statements | [YES] First-person active voice | [YES] Precise measurements with units
 
 ---
 
@@ -153,13 +153,13 @@ Context or reasoning for changes
 
 Every deliverable should work **immediately** for reviewers:
 
-✅ **Good Examples:**
+[YES] **Good Examples:**
 - `RUN_REALTIME_GUI.command` - Double-click to run
 - HRTF databases auto-install on first run
 - `START_HERE.md` guides user in 5 minutes
 - Demo audio files play with any media player
 
-❌ **Anti-patterns:**
+[NO] **Anti-patterns:**
 - Requiring manual configuration
 - Assuming knowledge of system paths
 - Missing dependencies without clear error messages
@@ -226,6 +226,7 @@ this research.
 ```
 
 **Writing Style Requirements:**
+- **No emojis:** Never use emojis in professional/academic documents or responses
 - **Avoid AI-like language:** No superlatives, no flowery prose, no unnecessary enthusiasm
 - **Be direct and technical:** Focus on precision, accuracy, and clarity
 - **Use scientific tone:** Formal but readable, objective without being robotic
@@ -233,20 +234,20 @@ this research.
 - **Avoid hedging when certain:** "The result shows..." not "appears to suggest..."
 
 **AI Language Red Flags (Avoid These):**
-❌ "It's worth noting that..."
-❌ "Importantly..."
-❌ "Remarkably..."
-❌ "It should be emphasized..."
-❌ "Interestingly..."
-❌ "Notably..."
-❌ "Significantly..." (unless referring to statistical significance)
-❌ Excessive use of "comprehensive", "robust", "novel"
+[NO] "It's worth noting that..."
+[NO] "Importantly..."
+[NO] "Remarkably..."
+[NO] "It should be emphasized..."
+[NO] "Interestingly..."
+[NO] "Notably..."
+[NO] "Significantly..." (unless referring to statistical significance)
+[NO] Excessive use of "comprehensive", "robust", "novel"
 
 **Good Scientific Writing:**
-✅ "The ITD model produces accurate results within the specified error bounds."
-✅ "This implementation achieves 95% computational efficiency compared to..."
-✅ "Results show RMS error of 8.2 μs (σ = 1.4 μs), below the 10 μs threshold."
-✅ "I validated the algorithm against Woodworth's analytical solution."
+[YES] "The ITD model produces accurate results within the specified error bounds."
+[YES] "This implementation achieves 95% computational efficiency compared to..."
+[YES] "Results show RMS error of 8.2 μs (σ = 1.4 μs), below the 10 μs threshold."
+[YES] "I validated the algorithm against Woodworth's analytical solution."
 
 ### 8. Reproducibility Standards
 
@@ -430,11 +431,11 @@ Listening Test Results:
    ```
 
 #### For missing HRTF databases (example from this project):
-- ✅ Found SOFA repository URL via official documentation
-- ✅ Used `curl` to inspect directory listings
-- ✅ Downloaded specific files with `wget`
-- ✅ Verified with `file` command (HDF5 format)
-- ✅ Confirmed file sizes match expectations
+- [YES] Found SOFA repository URL via official documentation
+- [YES] Used `curl` to inspect directory listings
+- [YES] Downloaded specific files with `wget`
+- [YES] Verified with `file` command (HDF5 format)
+- [YES] Confirmed file sizes match expectations
 
 ### Code Integration
 
@@ -470,9 +471,9 @@ When building launchers for real-time applications:
    ```
 4. **Provide clear status messages:**
    ```
-   ✅ Found installation
-   📦 Installing dependencies...
-   🚀 Starting application...
+   [YES] Found installation
+    Installing dependencies...
+    Starting application...
    ```
 
 ### Documentation Creation
@@ -485,7 +486,7 @@ When building launchers for real-time applications:
 Brief 2-3 sentence summary of what this document covers.
 
 ## What's Included
-Bulleted list of components/features with status indicators (✅/⚠️)
+Bulleted list of components/features with status indicators ([YES]/[WARNING])
 
 ## Quick Start
 Step-by-step instructions (numbered) for most common use case
@@ -515,9 +516,9 @@ Use boxes and tables for important information:
 ┌─────────────────────────────────────┐
 │ Status Indicators:                  │
 ├─────────────────────────────────────┤
-│ ✅ Complete                         │
-│ ⚠️  Warning/Attention needed        │
-│ ❌ Error/Missing                    │
+│ [YES] Complete                         │
+│ [WARNING]  Warning/Attention needed        │
+│ [NO] Error/Missing                    │
 └─────────────────────────────────────┘
 ```
 
@@ -588,7 +589,7 @@ Use boxes and tables for important information:
 
 ### Progress Updates
 - **Show, don't just tell:** Include file listings, sizes, checksums
-- **Use status indicators:** ✅ ⚠️ ❌ for visual clarity
+- **Use status indicators:** [YES] [WARNING] [NO] for visual clarity
 - **Provide context:** Explain *why* a step is needed, not just *what*
 - **Be proactive:** Mention potential issues before user discovers them
 
@@ -694,7 +695,7 @@ Before considering any deliverable complete:
 
 ## Anti-Patterns to Avoid
 
-### ❌ Don't Do This:
+### [NO] Don't Do This:
 
 1. **Assuming file existence:**
    ```bash
@@ -833,13 +834,13 @@ git push
 
 A project following this workflow should achieve:
 
-✅ **Functionality:** Everything works as documented
-✅ **Reproducibility:** Anyone can recreate results
-✅ **Maintainability:** Code is clean and documented
-✅ **Professional:** Presentation is polished
-✅ **Complete:** No missing pieces or TODO markers
-✅ **Backed up:** Version controlled and pushed to remote
-✅ **User-friendly:** Plug-and-play experience for reviewers
+[YES] **Functionality:** Everything works as documented
+[YES] **Reproducibility:** Anyone can recreate results
+[YES] **Maintainability:** Code is clean and documented
+[YES] **Professional:** Presentation is polished
+[YES] **Complete:** No missing pieces or TODO markers
+[YES] **Backed up:** Version controlled and pushed to remote
+[YES] **User-friendly:** Plug-and-play experience for reviewers
 
 ---
 
