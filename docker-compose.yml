@@ -1,0 +1,168 @@
+services:
+  api-orchestrator:
+    build: ./api-orchestrator
+    container_name: mcp-api
+    ports: ["8080:8080"]
+    volumes:
+      - ./shared:/workspace/shared
+    depends_on:
+      - faust-mcp
+      - bela-mcp
+      - docs-mcp
+      - metrics-mcp
+      - raven-mcp
+      - ableton-mcp
+      - overleaf-mcp
+    restart: unless-stopped
+  ableton-mcp:
+    build: ./ableton-mcp
+    container_name: mcp-ableton
+    ports: ["7100:7100"]
+    environment:
+      - ABLETON_HOST=host.docker.internal
+      - ABLETON_PORT=9001
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./shared:/workspace/shared
+    depends_on:
+      - metrics-mcp
+      - faust-mcp
+      - docs-mcp
+    restart: unless-stopped
+  bela-mcp:
+    build: ./bela-mcp
+    container_name: mcp-bela
+    ports: ["7078:7078"]
+    environment:
+      - BELA_IP=192.168.7.2
+      - BELA_USER=root
+      - BELA_SDK=/workspace/bela
+    volumes:
+      - ./shared:/workspace/shared
+      - ${HOME}/SDKs/Bela:/workspace/bela:ro
+    restart: unless-stopped
+  dsp-mcp:
+    build: ./dsp-mcp
+    container_name: mcp-dsp
+    ports: ["7010:7010"]
+    volumes: ["./shared:/workspace/shared"]
+    restart: unless-stopped
+  kicad-mcp:
+    build: ./kicad-mcp
+    container_name: mcp-kicad
+    ports: ["7015:7015"]
+    volumes: ["./shared:/workspace/shared"]
+    restart: unless-stopped
+  cpp-mcp:
+    build: ./cpp-mcp
+    container_name: mcp-cpp
+    ports: ["7020:7020"]
+    volumes:
+      - "./shared:/workspace/shared"
+      - "ccache:/root/.ccache"
+    restart: unless-stopped
+  vhdl-mcp:
+    build: ./vhdl-mcp
+    container_name: mcp-vhdl
+    ports: ["7030:7030"]
+    volumes: ["./shared:/workspace/shared"]
+    restart: unless-stopped
+  juce-mcp:
+    build: ./juce-mcp
+    container_name: mcp-juce
+    ports: ["7040:7040"]
+    environment:
+      - VST3_SDK_PATH=/workspace/vst3sdk
+    volumes:
+      - "./shared:/workspace/shared"
+      - "${HOME}/SDKs/VST3_SDK:/workspace/vst3sdk:ro"
+    restart: unless-stopped
+  daisy-mcp:
+    build: ./daisy-mcp
+    container_name: mcp-daisy
+    ports: ["7050:7050"]
+    volumes: ["./shared:/workspace/shared"]
+    restart: unless-stopped
+  fpga-mcp:
+    build: ./fpga-mcp
+    container_name: mcp-fpga
+    ports: ["7060:7060"]
+    environment:
+      - VIVADO_BIN=/opt/Xilinx/Vivado/2024.1/bin/vivado
+    volumes:
+      - "./shared:/workspace/shared"
+      - "/opt/Xilinx:/opt/Xilinx:ro"
+      - "./constraints:/workspace/constraints:ro"
+    restart: unless-stopped
+  docs-mcp:
+    build: ./docs-mcp
+    container_name: mcp-docs
+    ports: ["7070:7070"]
+    volumes: ["./shared:/workspace/shared"]
+    restart: unless-stopped
+  plugin-mcp:
+    build: ./plugin-mcp
+    container_name: mcp-plugin
+    ports: ["7072:7072"]
+    volumes: ["./shared:/workspace/shared"]
+    restart: unless-stopped
+  faust-mcp:
+    build: ./faust-mcp
+    container_name: mcp-faust
+    ports: ["7075:7075"]
+    volumes: ["./shared:/workspace/shared"]
+    restart: unless-stopped
+  ml-mcp:
+    build: ./ml-mcp
+    container_name: mcp-ml
+    ports: ["7080:7080"]
+    volumes: ["./shared:/workspace/shared"]
+    restart: unless-stopped
+  raven-mcp:
+    build: ./raven-mcp
+    container_name: mcp-raven
+    ports: ["7085:7085"]
+    volumes: ["./shared:/workspace/shared"]
+    restart: unless-stopped
+  orchestrator-mcp:
+    build: ./orchestrator-mcp
+    container_name: mcp-orchestrator
+    ports: ["7090:7090"]
+    volumes:
+      - "./shared:/workspace/shared"
+      - ".:/workspace/repo"
+    restart: unless-stopped
+  metrics-mcp:
+    build: ./metrics-mcp
+    container_name: mcp-metrics
+    ports: ["7095:7095"]
+    volumes: ["./shared:/workspace/shared"]
+    restart: unless-stopped
+  overleaf-mcp:
+    build: ./overleaf-mcp
+    container_name: mcp-overleaf
+    ports: ["7105:7105"]
+    volumes: ["./shared:/workspace/shared"]
+    restart: unless-stopped
+  jupyter-lab:
+    image: jupyter/scipy-notebook:python-3.12
+    container_name: mcp-jupyter
+    ports: ["8888:8888"]
+    volumes:
+      - "./shared:/home/jovyan/shared"
+    command: >
+      bash -c "
+        pip install -e /home/jovyan/shared/workflow &&
+        start-notebook.sh --NotebookApp.token=''
+      "
+    depends_on:
+      - dsp-mcp
+      - ml-mcp
+      - faust-mcp
+      - docs-mcp
+      - overleaf-mcp
+volumes:
+  ccache:
+
+
