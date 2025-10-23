@@ -5,7 +5,33 @@
 **Target Audience:** PhD candidates, academic researchers, and anyone requiring doctoral-level rigor in their work.
 
 **Last Updated:** October 23, 2025
-**Version:** 1.1 (PhD Standards Edition)
+**Version:** 1.2 (PhD Standards Edition)
+
+---
+
+## Quick Reference: Non-Negotiable Requirements
+
+**For ALL documents/papers:**
+- ✅ **Disclose AI usage:** Include AI assistance statement in acknowledgements or methods
+- ✅ **Avoid AI language:** No "notably", "importantly", "remarkably", "it's worth noting"
+- ✅ **First-person:** Use "I" for single-author work, not passive voice
+- ✅ **Cite primary sources:** Never cite without reading the original paper
+- ✅ **Pin dependencies:** Exact versions in requirements.txt (numpy==1.24.3)
+- ✅ **Validate algorithms:** Compare against analytical solutions or reference implementations
+
+**AI Disclosure Template (Required):**
+```latex
+\section*{Acknowledgements}
+The author acknowledges the use of Claude (Anthropic) for technical
+writing assistance, code debugging, and workflow optimization during
+this research.
+```
+
+**Forbidden Phrases:**
+❌ "It's worth noting..." | ❌ "Importantly..." | ❌ "Remarkably..." | ❌ "Interestingly..."
+
+**Required:**
+✅ Direct statements | ✅ First-person active voice | ✅ Precise measurements with units
 
 ---
 
@@ -174,6 +200,53 @@ The head model gives ITD based on azimuth...
 - CIPIC: Algazi et al. (2001), IEEE WASPAA
 - Listen/IRCAM: IRCAM Listen database (2002), SOFA format
 - Include URLs and access dates in bibliography
+
+**AI Assistance Disclosure:**
+- **ALWAYS disclose AI usage:** Every document that uses AI assistance must explicitly state this
+- **Be specific:** Name the tool (Claude/Claude Code by Anthropic) and its role
+- **Maintain academic integrity:** AI assists but does not author - you remain the sole author
+- **Location:** Include disclosure in acknowledgements, methods, or dedicated AI usage statement
+
+**Required Disclosure Format:**
+```latex
+\section*{AI Assistance Statement}
+This work was developed with assistance from Claude (Anthropic), an AI
+research assistant, for code development, literature synthesis, and
+technical writing support. All scientific decisions, interpretations,
+and conclusions remain solely those of the author. AI-generated content
+was critically reviewed and validated before inclusion.
+```
+
+Or in Acknowledgements:
+```latex
+\section*{Acknowledgements}
+The author acknowledges the use of Claude (Anthropic) for technical
+writing assistance, code debugging, and workflow optimization during
+this research.
+```
+
+**Writing Style Requirements:**
+- **Avoid AI-like language:** No superlatives, no flowery prose, no unnecessary enthusiasm
+- **Be direct and technical:** Focus on precision, accuracy, and clarity
+- **Use scientific tone:** Formal but readable, objective without being robotic
+- **First-person for single-author:** "I implemented..." not "was implemented..."
+- **Avoid hedging when certain:** "The result shows..." not "appears to suggest..."
+
+**AI Language Red Flags (Avoid These):**
+❌ "It's worth noting that..."
+❌ "Importantly..."
+❌ "Remarkably..."
+❌ "It should be emphasized..."
+❌ "Interestingly..."
+❌ "Notably..."
+❌ "Significantly..." (unless referring to statistical significance)
+❌ Excessive use of "comprehensive", "robust", "novel"
+
+**Good Scientific Writing:**
+✅ "The ITD model produces accurate results within the specified error bounds."
+✅ "This implementation achieves 95% computational efficiency compared to..."
+✅ "Results show RMS error of 8.2 μs (σ = 1.4 μs), below the 10 μs threshold."
+✅ "I validated the algorithm against Woodworth's analytical solution."
 
 ### 8. Reproducibility Standards
 
