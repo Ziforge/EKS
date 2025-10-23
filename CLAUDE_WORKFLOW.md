@@ -1,9 +1,42 @@
 # Claude Code Workflow Guide
 
-**Purpose:** This document defines the preferred workflows, methodologies, and standards developed during the NTNU ITD/ILD submission project. Use this as a reference for future collaborative projects.
+**Purpose:** This document defines the preferred workflows, methodologies, and standards for PhD-level research and development. These standards ensure reproducibility, rigor, and academic integrity across all collaborative projects.
 
-**Last Updated:** October 22, 2025
-**Version:** 1.0
+**Target Audience:** PhD candidates, academic researchers, and anyone requiring doctoral-level rigor in their work.
+
+**Last Updated:** October 23, 2025
+**Version:** 1.1 (PhD Standards Edition)
+
+---
+
+## Philosophy: PhD-Level Rigor
+
+Doctoral research demands:
+- **Reproducibility:** Every result must be independently verifiable
+- **Transparency:** All methods, assumptions, and limitations documented
+- **Integrity:** No claims without evidence, no shortcuts
+- **Precision:** Exact measurements, proper error analysis, statistical validation
+- **Thoroughness:** Comprehensive literature review, complete references
+- **Innovation:** Novel contributions clearly distinguished from existing work
+
+This workflow implements these principles at every level.
+
+### Research Domain: DSP and Acoustics
+
+**Specialization Focus:**
+- Digital Signal Processing (real-time and offline)
+- Acoustic signal processing and spatial audio
+- Binaural synthesis and psychoacoustics
+- Audio systems engineering (embedded, real-time)
+- Physical modeling and measurement
+
+**Domain-Specific Standards:**
+- **Sample-accurate verification:** All DSP implementations verified at sample level
+- **Perceptual validation:** Listening tests and psychoacoustic metrics
+- **Physical accuracy:** Models validated against measurements or analytical solutions
+- **Real-time constraints:** Latency, throughput, and computational complexity documented
+- **Standardized formats:** SOFA, WAV, research-standard file formats
+- **Measurement protocols:** Calibrated equipment, documented conditions, error analysis
 
 ---
 
@@ -112,6 +145,191 @@ Every deliverable should work **immediately** for reviewers:
 - [ ] Auto-detect and fix common issues
 - [ ] Provide clear error messages with solutions
 - [ ] Document all requirements upfront
+
+---
+
+## PhD Research Standards
+
+### 7. Academic Integrity and Attribution
+
+**Citation Requirements:**
+- **Primary sources:** Always cite original papers, not secondary references
+- **Code attribution:** Credit libraries, algorithms, and datasets with proper citations
+- **Data provenance:** Document source, version, and access date for all datasets
+- **Methodology references:** Cite papers describing methods being implemented
+- **No orphan claims:** Every technical statement has either a citation or derivation
+
+**Example - Proper Attribution:**
+```latex
+% Good: Primary source with implementation details
+The Woodworth spherical-head model~\cite{woodworth1954} provides...
+ITD(\phi) = \frac{a}{c}(\sin\phi + \phi)  % Equation 2.1 from Woodworth
+
+% Bad: No citation, unclear source
+The head model gives ITD based on azimuth...
+```
+
+**HRTF Database Attribution:**
+- MIT KEMAR: Gardner & Martin (1995), MIT Media Lab Technical Report #280
+- CIPIC: Algazi et al. (2001), IEEE WASPAA
+- Listen/IRCAM: IRCAM Listen database (2002), SOFA format
+- Include URLs and access dates in bibliography
+
+### 8. Reproducibility Standards
+
+**Code Reproducibility:**
+- **Exact versions:** Pin all dependencies (`numpy==1.24.3`, not `numpy>=1.0`)
+- **Random seeds:** Set and document all random seeds
+- **Platform documentation:** OS, architecture, compiler versions
+- **Computational resources:** CPU/GPU specs, execution time, memory usage
+- **Environment files:** `requirements.txt`, `environment.yml`, Docker containers
+
+**Data Reproducibility:**
+- **Raw data preservation:** Never modify original data files
+- **Processing pipeline:** Document all preprocessing steps with code
+- **Versioning:** SHA256 checksums for datasets
+- **Accessibility:** Public datasets with DOIs when possible
+- **Generated data:** Include scripts to regenerate from raw data
+
+**Example - Reproducibility Manifest:**
+```yaml
+experiment: binaural_synthesis_validation
+date: 2025-10-23
+environment:
+  os: macOS 14.5
+  python: 3.12.0
+  packages:
+    numpy: 1.24.3
+    scipy: 1.11.2
+  hardware:
+    cpu: Apple M2
+    ram: 16GB
+datasets:
+  mit_kemar:
+    source: https://sound.media.mit.edu/resources/KEMAR/
+    version: compact
+    sha256: <hash>
+    access_date: 2025-10-15
+parameters:
+  sample_rate: 48000
+  head_radius: 0.0875  # meters, ±0.0005
+  speed_of_sound: 343.0  # m/s, 20°C
+random_seed: 42
+```
+
+### 9. Experimental Rigor
+
+**DSP Algorithm Validation:**
+1. **Analytical verification:** Compare against closed-form solutions where available
+2. **Unit tests:** Test edge cases, boundary conditions, numeric stability
+3. **Known-answer tests:** Verify against reference implementations
+4. **Perceptual validation:** ABX tests, listening studies with statistical analysis
+5. **Performance profiling:** CPU usage, memory, latency measurements
+
+**Measurement Protocols:**
+- **Calibration:** Document calibration procedures and dates
+- **Environmental conditions:** Temperature, humidity, background noise levels
+- **Equipment specifications:** Make, model, serial numbers, firmware versions
+- **Uncertainty analysis:** Propagate measurement errors through calculations
+- **Multiple trials:** Report mean, std dev, confidence intervals
+
+**Example - ITD Measurement Validation:**
+```python
+def validate_itd_implementation():
+    """
+    Validate ITD function against Woodworth (1954) analytical solution.
+
+    Test conditions:
+    - Head radius: a = 8.75 cm (±0.5 mm, Knowles KEMAR)
+    - Speed of sound: c = 343 m/s (20°C, dry air)
+    - Azimuth range: ±90° (±0.1°)
+
+    Acceptance criteria:
+    - RMS error < 10 μs (JND for ITD ~ 10-20 μs)
+    - Max error < 20 μs at any azimuth
+
+    References:
+    - Woodworth & Schlosberg (1954), Experimental Psychology
+    - Kuhn (1977), "Model for interaural time differences"
+    """
+    a = 0.0875  # meters
+    c = 343.0   # m/s
+
+    # Test azimuths (degrees)
+    azimuths = np.linspace(-90, 90, 181)
+    phi_rad = np.deg2rad(azimuths)
+
+    # Analytical solution (Woodworth formula)
+    itd_analytical = (a / c) * (np.sin(phi_rad) + phi_rad)
+
+    # Our implementation
+    itd_computed = compute_itd(azimuths, head_radius=a)
+
+    # Error analysis
+    error = itd_computed - itd_analytical
+    rms_error = np.sqrt(np.mean(error**2))
+    max_error = np.max(np.abs(error))
+
+    # Report with units
+    print(f"RMS error: {rms_error*1e6:.2f} μs")
+    print(f"Max error: {max_error*1e6:.2f} μs")
+
+    # Statistical test
+    assert rms_error < 10e-6, f"RMS error {rms_error*1e6:.1f} μs exceeds 10 μs threshold"
+    assert max_error < 20e-6, f"Max error {max_error*1e6:.1f} μs exceeds 20 μs threshold"
+
+    return {
+        'rms_error_us': rms_error * 1e6,
+        'max_error_us': max_error * 1e6,
+        'passed': True
+    }
+```
+
+### 10. Literature Review Standards
+
+**Before implementing ANY algorithm:**
+1. **Search academic databases:** IEEE Xplore, ACM Digital Library, Google Scholar
+2. **Review seminal papers:** Find the original publication introducing the method
+3. **Check for improvements:** Look for more recent refinements or corrections
+4. **Implementation notes:** Check if authors provide reference implementations
+5. **Validation data:** Find datasets or test cases used in original papers
+
+**Minimum Citation Requirements:**
+- **For each algorithm:** ≥1 primary source paper
+- **For each dataset:** Original publication + access URL
+- **For each metric:** Definition paper + any modifications
+- **For each claim:** Supporting evidence or derivation
+
+**Literature Search Checklist:**
+- [ ] Searched Google Scholar for primary sources
+- [ ] Checked IEEE Xplore for related work
+- [ ] Reviewed Audio Engineering Society (AES) publications
+- [ ] Checked arXiv for recent preprints
+- [ ] Verified no contradicting results in recent literature
+- [ ] Documented search terms and date
+
+### 11. Statistical Rigor
+
+**When reporting experimental results:**
+- **Sample size:** Justify based on power analysis
+- **Statistical tests:** Choose appropriate test (t-test, ANOVA, non-parametric)
+- **Effect size:** Report Cohen's d, η², or other effect size measures
+- **P-values:** Report exact values, not just p<0.05
+- **Confidence intervals:** 95% CI for all estimates
+- **Multiple comparisons:** Apply Bonferroni or FDR correction when needed
+
+**Example - Perceptual Study Reporting:**
+```
+Listening Test Results:
+- Participants: N=15 (normal hearing, age 22-34, mean=26.3±3.1 years)
+- Trials: 50 per condition (total 750 trials)
+- Task: ABX discrimination (parametric vs. measured HRTF)
+- Results: 78.2% correct (95% CI: [74.1%, 82.3%])
+- Chance level: 50%
+- Statistical test: One-sample t-test vs. chance
+- t(14) = 12.4, p < 0.001, Cohen's d = 3.2 (large effect)
+- Conclusion: Participants reliably discriminate between conditions
+```
 
 ---
 
