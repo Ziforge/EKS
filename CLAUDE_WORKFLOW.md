@@ -169,6 +169,26 @@ gh repo create repo-name --private --push
 ### 5. Professional Academic Standards
 
 #### LaTeX Documents
+
+**Document Class and Format:**
+- **ALWAYS use two-column format:** `\documentclass[twocolumn]{article}` or journal template
+- **Default template: Acta Acustica** for all acoustics/audio papers
+  - Download from: https://acta-acustica.edpsciences.org/
+  - Use official `.cls` file and follow submission guidelines
+  - Maintain journal formatting standards (margins, fonts, spacing)
+- **Alternative templates:** Only when explicitly specified (IEEE, AES, etc.)
+
+**Figures and Diagrams:**
+- **ALL diagrams MUST use TikZ** - never use external image editors for technical diagrams
+- **No raster graphics for diagrams** - only vector graphics (TikZ, PDF)
+- **Photographs/plots:** Can use PNG/JPG for actual data/photos
+- **TikZ requirements:**
+  - Clean, publication-quality vector graphics
+  - Consistent styling (line widths, fonts, colors)
+  - Properly labeled axes with units
+  - Scalable without quality loss
+
+**Cross-References and Compilation:**
 - **Always use Read tool before editing** existing LaTeX files
 - **Preserve exact indentation** from line-numbered output
 - **Use first-person singular ("I")** for single-author papers
@@ -179,6 +199,47 @@ gh repo create repo-name --private --push
   - Sections: `\label{sec:name}` → `\ref{sec:name}`
 - **Compile twice** to resolve all cross-references
 - **Check for "??" or "??" in PDF** before considering complete
+
+**TikZ Diagram Standards:**
+```latex
+% Example: Signal flow diagram
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[>=stealth, scale=0.8]
+  % Nodes with consistent styling
+  \node[draw, rectangle, minimum width=2cm] (input) at (0,0) {Input};
+  \node[draw, circle] (sum) at (3,0) {$+$};
+  \node[draw, rectangle] (process) at (6,0) {$H(z)$};
+
+  % Connections with arrows
+  \draw[->] (input) -- (sum);
+  \draw[->] (sum) -- (process);
+
+  % Labels with units
+  \node[above] at (1.5,0) {$x[n]$};
+\end{tikzpicture}
+\caption{Signal processing block diagram showing input processing.}
+\label{fig:block-diagram}
+\end{figure}
+```
+
+**Citation Quality Standards:**
+- **Only cite verified, peer-reviewed sources:**
+  - Journal papers (IEEE, AES, Acta Acustica, JASA)
+  - Conference proceedings (ICASSP, DAFx, AES Convention)
+  - Technical reports from recognized institutions
+  - Books from academic publishers
+- **Do NOT cite:**
+  - Wikipedia or general encyclopedias
+  - Blog posts or Medium articles
+  - Non-peer-reviewed preprints (unless absolutely necessary)
+  - Course notes or assignment specifications
+  - Personal communications (unless critical and unavailable elsewhere)
+- **Verify before citing:**
+  - Read the actual paper, not just the abstract
+  - Check publication venue is reputable
+  - Ensure results are reproducible/validated
+  - Prefer primary sources over secondary citations
 
 #### Reports and Documentation
 - **Accuracy over completion:** Don't claim features/data that don't exist
