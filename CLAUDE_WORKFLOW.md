@@ -5,7 +5,7 @@
 **Target Audience:** PhD candidates, academic researchers, and anyone requiring doctoral-level rigor in their work.
 
 **Last Updated:** October 23, 2025
-**Version:** 1.3 (PhD Standards Edition - No Emojis)
+**Version:** 1.4 (PhD Standards Edition - Private by Default)
 
 ---
 
@@ -18,6 +18,7 @@
 - [YES] **Cite primary sources:** Never cite without reading the original paper
 - [YES] **Pin dependencies:** Exact versions in requirements.txt (numpy==1.24.3)
 - [YES] **Validate algorithms:** Compare against analytical solutions or reference implementations
+- [YES] **Private GitHub by default:** All repositories MUST be private unless explicitly stated to make public
 
 **AI Disclosure Template (Required):**
 ```latex
@@ -115,7 +116,10 @@ This workflow implements these principles at every level.
    - Blank line
    - Detailed description with bullet points
    - File counts and size info when relevant
-3. Use private repositories by default for academic/sensitive work
+3. **ALWAYS create private repositories by default**
+   - Use `gh repo create --private` or GitHub web UI with private setting
+   - ONLY make public when explicitly instructed "make this public"
+   - Academic/research work is private until publication
 4. Verify push success (check file count, remote status)
 
 #### Commit Message Format
@@ -128,6 +132,39 @@ Brief summary of changes
 
 Context or reasoning for changes
 ```
+
+#### Repository Privacy Policy
+
+**Default: PRIVATE**
+- All new repositories MUST be created as private
+- Academic research, unpublished work, and in-progress projects are private
+- Protects intellectual property during development
+- Maintains control over who can access the work
+
+**Command for Creating Private Repos:**
+```bash
+# GitHub CLI (preferred)
+gh repo create repo-name --private --source=. --remote=origin
+
+# Or specify during creation
+git init
+git add .
+git commit -m "Initial commit"
+gh repo create repo-name --private --push
+```
+
+**Making Public:**
+- ONLY when explicitly instructed: "make this repository public"
+- Typically after:
+  - Paper acceptance/publication
+  - Thesis defense completion
+  - Explicit decision to open-source
+  - Collaboration requirements
+
+**Never Assume Public:**
+- Do not create public repos without explicit instruction
+- If uncertain, always default to private
+- Can always make private repos public later, but cannot unpublish
 
 ### 5. Professional Academic Standards
 
